@@ -1,0 +1,25 @@
+{
+  // ESLint is the ONLY formatter in this project. See docs/DECISIONS.md.
+  //
+  // Without these settings, VS Code's built-in TypeScript formatter runs on save
+  // and adds semicolons, which ESLint then reports as "Extra semicolon
+  // (@stylistic/semi)". Two formatters disagreeing over the same file.
+  //
+  // So: turn the built-in format-on-save off, and let ESLint --fix run on save
+  // instead. ESLint handles both correctness and formatting.
+  "editor.formatOnSave": false,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+
+  // If you press Format Document by hand, use ESLint for that too.
+  "[typescript]": { "editor.defaultFormatter": "dbaeumer.vscode-eslint" },
+  "[javascript]": { "editor.defaultFormatter": "dbaeumer.vscode-eslint" },
+  "[vue]": { "editor.defaultFormatter": "dbaeumer.vscode-eslint" },
+
+  "eslint.useFlatConfig": true,
+  "eslint.validate": ["javascript", "typescript", "vue"],
+
+  // Prisma schema files are formatted by the Prisma extension, not ESLint.
+  "[prisma]": { "editor.formatOnSave": true }
+}

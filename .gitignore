@@ -9,6 +9,9 @@ dist
 # Node dependencies
 node_modules
 
+# Prisma client is generated from prisma/schema.prisma by `prisma generate`
+generated
+
 # Logs
 logs
 *.log

@@ -1,0 +1,13 @@
+{
+  // These make the settings in settings.json actually work.
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "Vue.volar",
+    "Prisma.prisma"
+  ],
+  // Prettier would fight with ESLint over formatting. This project uses ESLint
+  // for both, so VS Code should not suggest installing Prettier.
+  "unwantedRecommendations": [
+    "esbenp.prettier-vscode"
+  ]
+}
