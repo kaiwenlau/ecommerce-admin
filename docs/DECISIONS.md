@@ -412,3 +412,16 @@ A store loses all of this on refresh. The brief asks for both, and a URL gives b
 
 1. Two orders hit the last item at the same time → exactly one succeeds.
 2. Change a product's price → the old order still shows the old price.
+
+About an hour. These two cover the claims in this document that would otherwise just be me saying so. I skipped the Playwright browser test. That is the weakest part of my scope — if I found another half day, that is where it would go.
+
+---
+
+## What I would do differently for a real product
+
+Most choices above are shaped by "6 days, then nobody touches it." If that were not true:
+
+- **Drizzle instead of Prisma.** For anything long-lived, being closer to SQL wins, and both problems I described above disappear.
+- **Playwright tests** on login and checkout, not just the data layer.
+- **A proper seed script** that can be run twice without creating duplicates.
+- **Customer deletion and a GDPR path.** Any system holding real customer data needs this. This one ignores it on purpose.
