@@ -1,0 +1,121 @@
+// Money is ALWAYS stored as whole cents in an Int. $19.99 is 1999.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ProductStatus {
+  draft
+  active
+  archived
+}
+
+enum OrderStatus {
+  pending
+  paid
+  shipped
+  delivered
+  cancelled
+}
+
+model Product {
+  id          Int           @id @default(autoincrement())
+  sku         String
+  name        String
+  description String?
+  priceCents  Int
+  stock       Int           @default(0)
+  category    String
+  status      ProductStatus @default(active)
+
+  // Soft delete. Products are referenced by historical order lines, so a real
+  // delete would either orphan those rows or destroy sales history.
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orderItems OrderItem[]
+
+  // NOTE: the uniqueness of `sku` is NOT declared here. It is a partial unique
+  // index that only applies while deletedAt IS NULL, which Prisma cannot express.
+  // It is added by hand in the migration so a deleted product frees its SKU.
+  @@index([status])
+  @@index([category])
+  @@index([deletedAt])
+  @@index([name])
+  @@index([priceCents])
+}
+
+model Customer {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  orders Order[]
+}
+
+model Order {
+  id         Int         @id @default(autoincrement())
+  customerId Int
+  status     OrderStatus @default(pending)
+  totalCents Int
+  createdAt  DateTime    @default(now())
+
+  customer     Customer           @relation(fields: [customerId], references: [id])
+  items        OrderItem[]
+  statusEvents OrderStatusEvent[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id      Int @id @default(autoincrement())
+  orderId Int
+
+  // Kept as a link so we can answer "which customers bought this product",
+  // but the name and price below are COPIES taken at purchase time.
+  productId Int
+
+  // Snapshot fields. If the product is later renamed, repriced or deleted,
+  // this order still shows what the customer actually bought and paid.
+  name           String
+  unitPriceCents Int
+
+  qty Int
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+// Audit trail: who changed an order's status, from what, to what, and when.
+model OrderStatusEvent {
+  id         Int          @id @default(autoincrement())
+  orderId    Int
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  changedBy  String
+  createdAt  DateTime     @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+model AdminUser {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}

@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ecommerce-admin-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: ecommerce
+    ports:
+      # If 5432 is already taken on your machine, change the left side to 5433
+      # and update DATABASE_URL in .env to match.
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # Lets `docker compose up -d --wait` block until the database really accepts
+      # connections, instead of just until the container starts.
+      test: ["CMD-SHELL", "pg_isready -U admin -d ecommerce"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
