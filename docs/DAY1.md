@@ -17,7 +17,7 @@
 
 ---
 
-## Packages added — 14
+## Packages added — 15
 
 I installed everything for the whole project on Day 1, so I never have to stop mid-feature later.
 
@@ -32,7 +32,7 @@ I installed everything for the whole project on Day 1, so I never have to stop m
 | `pinia` | 4.0.2 | Will hold the tick-box selection for bulk actions (Day 5) |
 | `nuxt-auth-utils` | 0.5.30 | Login, sessions, password hashing |
 
-### Dev — 8
+### Dev — 9
 
 | Package | Version | What it is for |
 |---|---|---|
@@ -44,6 +44,7 @@ I installed everything for the whole project on Day 1, so I never have to stop m
 | `vitest` | 4.1.10 | Will run the 2 tests (Day 5) |
 | `@nuxt/test-utils` | 4.1.0 | Lets Vitest start a Nuxt app |
 | `dotenv` | 17.4.2 | **Not planned.** Prisma 7's new config file imports it |
+| `@adonisjs/hash` | 9.1.1 | Hashes the admin password in the seed. **Added on Day 2** — the seed was importing it without ever declaring it |
 
 ### Not installed, on purpose
 
@@ -246,6 +247,8 @@ nuxt-auth-utils' `hashPassword()` reads Nuxt's runtime config, which does not ex
 If I had hashed the password with a different method, login would have failed on Day 2 — and it would have looked like a login bug, not a seeding bug.
 
 **How I solved it:** read the module's source. It is a thin wrapper around `@adonisjs/hash` using the scrypt driver, so the seed calls that library directly. The result is a self-describing PHC string, so `verifyPassword()` still accepts it at login.
+
+**Follow-up, Day 2.** A code review caught that this fix left a hole — the seed imported `@adonisjs/hash` but never declared it. It only worked because npm hoists the package out of `nuxt-auth-utils`, so the seed was borrowing another package's dependency. If that package ever swapped its hasher, `npm run db:seed` would fail with `Cannot find module` and nothing in my own `package.json` would have changed. Now declared explicitly at `9.1.1`.
 
 ### 4. VS Code and ESLint fought over semicolons (~10 min)
 

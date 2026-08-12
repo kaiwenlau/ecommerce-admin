@@ -25,7 +25,7 @@ Day-by-day build plan. Stack choices and reasons are in `docs/DECISIONS.md`.
 
 ```bash
 npm i @nuxt/ui @prisma/client @prisma/adapter-pg zod pinia nuxt-auth-utils
-npm i -D prisma @pinia/nuxt tsx @faker-js/faker @nuxt/eslint vitest @nuxt/test-utils dotenv
+npm i -D prisma @pinia/nuxt tsx @faker-js/faker @nuxt/eslint vitest @nuxt/test-utils dotenv @adonisjs/hash
 ```
 
 **What each one does:**
@@ -46,6 +46,7 @@ npm i -D prisma @pinia/nuxt tsx @faker-js/faker @nuxt/eslint vitest @nuxt/test-u
 | `vitest` | Runs my 2 tests |
 | `@nuxt/test-utils` | Lets Vitest start a Nuxt app for testing |
 | `dotenv` | Reads `.env` for the Prisma command line. **Prisma 7 needs this** — its new `prisma.config.ts` imports it |
+| `@adonisjs/hash` | Hashes the admin password in the seed. Needed because `hashPassword()` reads Nuxt's runtime config, which a standalone `tsx` script does not have |
 
 **Not installing:** `pg`, `@types/pg` (already inside `@prisma/adapter-pg`), `tailwindcss` (inside `@nuxt/ui`), `@tanstack/vue-table` (inside `@nuxt/ui`, and the standalone one is a different
 version that would clash).
@@ -71,6 +72,7 @@ version that would clash).
 - [x] `npm i -D vitest`
 - [x] `npm i -D @nuxt/test-utils`
 - [x] `npm i -D dotenv` ← not in the original plan, Prisma 7 needs it
+- [x] `npm i -D @adonisjs/hash` ← not in the original plan; the seed was importing it without declaring it
 
 **Setup**
 
