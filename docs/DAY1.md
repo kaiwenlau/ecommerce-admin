@@ -208,7 +208,7 @@ Set up so later demos actually work, not just to fill tables.
 - **Fixed random seed** (`faker.seed(20260811)`). Re-running gives the same data every time, so the demo looks identical each run.
 - **The first 3 orders are forced** to `pending` and to contain products 1, 2 and 3. Day 5's bulk archive refuses to archive a product that has unfinished orders, so this **guarantees** the partial-failure demo has real failures to show. Without this I would be relying on luck.
 - **5 products have zero stock**, so the out-of-stock state is visible straight away.
-- **491 status events** were generated, so orders already have a believable history for the Day 5 audit trail.
+- **525 status events** were generated, so orders already have a believable history for the Day 5 audit trail. Every trail starts at `pending`, because that is the column default — an order cannot come into existence already paid. (Was 491 until Day 2: cancelled orders were missing their first step, found by a code review.)
 
 ### Checked after seeding
 
@@ -216,8 +216,9 @@ Set up so later demos actually work, not just to fill tables.
 |---|---|
 | Row counts | 50 products, 30 customers, 200 orders, 478 lines, 1 admin |
 | Orders whose total does not match their line items | **0** |
-| Products with unfinished orders (needed for Day 5) | Present |
+| Products with unfinished orders (needed for Day 5) | Present — 46 products |
 | Prices are whole cents | 672 to 29367 |
+| Every status trail starts at `pending` | **200 of 200** (checked after the Day 2 fix) |
 
 ---
 

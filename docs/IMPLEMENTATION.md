@@ -229,7 +229,10 @@ Written **before** starting. The Blocker log below is what actually happened.
 
 | What happened | Why it cost time | What I did | Time lost |
 |---|---|---|---|
-|  |  |  |  |
+| **Ran a code review over Day 1 before starting Day 2.** It found the seed importing `@adonisjs/hash` without declaring it — it only resolved because npm hoists the package out of `nuxt-auth-utils` | Nothing was broken, so nothing would have told me. It would have surfaced later as `Cannot find module` on a fresh clone, or the moment `nuxt-auth-utils` changed its hasher | Declared it at `9.1.1` in `devDependencies`. Code unchanged — the imports were always correct, they were just undeclared | ~15 min |
+| **Same review: cancelled orders had a corrupt audit trail.** 34 of 200 had a first event of `→ paid`, so the timeline claimed they were created already paid and the `pending → paid` step was missing | The audit trail is a Day 5 bonus. I would have built the feature against demo data that contradicts it, and probably only noticed while rehearsing the demo | Fixed the seed's cancelled path to `['pending','paid','cancelled']` and re-seeded. Also removed a no-op variable and an `as` cast that was hiding a real type error | ~20 min |
+
+**About 35 minutes, spent before writing any Day 2 code.** Both were latent — the app ran fine with them. Worth it: the second one would have shown up while rehearsing the demo, which is the worst possible moment to find that your seed data disagrees with your feature.
 
 ---
 

@@ -149,16 +149,17 @@ async function main() {
   console.log(`Created ${orders.length} orders with ${itemCount} line items`)
 
   // -------------------------------------------------- audit trail history
-  // Give every non-pending order the status trail it would have accumulated.
+  // Give every order the status trail it would have accumulated.
+  // Every order starts as `pending`, so every trail must start there
+  // including `cancelled` status, which were pending, paid, until someone cancelled them.
   const flow = ['pending', 'paid', 'shipped', 'delivered'] as const
   const placed = await prisma.order.findMany({ select: { id: true, status: true, createdAt: true } })
 
   await prisma.orderStatusEvent.createMany({
     data: placed.flatMap((order) => {
-      const target = order.status === 'cancelled' ? 'cancelled' : order.status
-      const path = target === 'cancelled'
-        ? (['paid', 'cancelled'] as const)
-        : flow.slice(0, flow.indexOf(target as typeof flow[number]) + 1)
+      const path = order.status === 'cancelled'
+        ? (['pending', 'paid', 'cancelled'] as const)
+        : flow.slice(0, flow.indexOf(order.status) + 1)
 
       return path.map((toStatus, step) => ({
         orderId: order.id,
