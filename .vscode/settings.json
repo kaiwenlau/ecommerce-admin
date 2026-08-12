@@ -21,5 +21,14 @@
   "eslint.validate": ["javascript", "typescript", "vue"],
 
   // Prisma schema files are formatted by the Prisma extension, not ESLint.
-  "[prisma]": { "editor.formatOnSave": true }
+  "[prisma]": { "editor.formatOnSave": true },
+
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+  "editor.quickSuggestions": {
+    "strings": "on"
+  },
+  "tailwindCSS.classAttributes": ["class", "ui"],
+  "tailwindCSS.classFunctions": ["defineAppConfig"]
 }
