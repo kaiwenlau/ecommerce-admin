@@ -349,18 +349,41 @@ What "deleted" means here:
 - Still opens on its own page, so old links do not 404
 - Its SKU is able for reuse (Postgres index from earlier)
 
-### 4. Overselling: 2 layers
+### 4. Overselling: 3 layers
 
 **Overselling is selling more than what's available.** Example: 1 shirt in stock, 2 people click Buy at same time, both orders go through. Stock goes to `-1`, an unwanted outcome.
 
 **Why It happen**: B get the value before A finish the buying process. B read and decide to buy on a stale data.
 
-**Counter measure:** 2 layers of checking.
+**Counter measure:** 3 layers of checking.
 
 | Layer | What it does | Catches |
 |---|---|---|
 | 1. The `updateMany` in the Prisma section | Check and update in one step, so there is no gap | Two people buying at the same moment |
 | 2. `CHECK (stock >= 0)` | Database refuses negative stock | My own bugs, a bad migration, someone editing the database by hand |
+| 3. `CHECK ("qty" > 0)` on `OrderItem` | Database refuses a nonsense quantity | A negative quantity, which slips past layers 1 and 2 |
+
+**Why layer 3 exists.** Layers 1 and 2 both check the *result*. Layer 3 checks the *input*.
+
+### 5. Cancelling an order: put the stock back
+
+**Rule:** order once `shipped`, it cannot be cancelled. Can be cancelled from `pending` and `paid` only.
+
+**Why the rule matters:** `cancelled` means *we never sent it*. The goods are still on the shelf, so cancelling **returns the stock**.
+
+**`OrderItem.qty` is never made negative.** the order is a record of what was ordered. Cancelling then restock changes `Product.stock`, not the order.
+
+**The concurrency catch:** cancelling does three things — set the status, write the audit event, and return the stock. If it can run twice, stock inflates. So the legality check goes in the `WHERE`, exactly like the oversell fix:
+
+```ts
+const { count } = await tx.order.updateMany({
+  where: { id, status: { in: ['pending', 'paid'] } },
+  data:  { status: 'cancelled' },
+})
+if (count === 0) throw new IllegalTransitionError(id)
+```
+
+**Note on the limit of "put it in the database":** a `CHECK` constraint cannot enforce this rule. It only sees the new row, not the move from the old one. Enforcing it in the database would need a trigger. The conditional `UPDATE` above is the pragmatic equivalent — atomic, but application-level.
 
 ---
 

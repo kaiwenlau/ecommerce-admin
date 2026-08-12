@@ -368,10 +368,13 @@ if (count === 0) throw new OutOfStockError(id)
 
 ### 2. Order status + audit trail (midday, ~2 hours)
 
-- [ ] Allowed moves only: `pending → paid → shipped → delivered`, and `cancelled` from anywhere before delivered
-- [ ] Reject anything else on the server
+- [ ] Forward moves only: `pending → paid → shipped → delivered`
+- [ ] `cancelled` **only from `pending` or `paid`**. Once shipped cannot be cancelled. Return which is a different thing and out of scope
+- [ ] Reject anything else on the server. The dropdown is a convenience, not the rule
 - [ ] `PATCH /api/orders/:id/status` writes an `OrderStatusEvent` row in the same transaction
 - [ ] Record who did it, from the session
+- [ ] **Cancelling puts the stock back** — `pending`/`paid` means it never shipped, so the goods are still on the shelf. Same transaction as the status change and the event
+- [ ] **Guard the transition in the `WHERE`, not with a read-then-write**, so two concurrent cancels cannot both restock
 - [ ] Show the history as a timeline on `/orders/[id]` — the page built on Day 4
 
 ### 3. Bulk actions with partial failure (afternoon, ~3 hours)
@@ -406,6 +409,7 @@ if (count === 0) throw new OutOfStockError(id)
 | No failures to demo | Bulk archive succeeds on all 10, so the interesting case is invisible | Already handled: the seed forces orders 1–3 to `pending` on products 1–3, which the archive rule rejects. Verify this still holds after any re-seed | Medium |
 | Prisma `$transaction` times out | `Transaction already closed` or a timeout error under concurrency | Default timeout is short. Keep the transaction to the update and insert only — no slow work inside it | Medium |
 | Status guard is only in the UI | Disabling the dropdown in devtools lets me set any status | The allowed-transition check must run **server-side**. The UI is a convenience, not the rule | High |
+| **Double Cancelling restocks twice** | Stock climbs above what it should be after a double-click or a retried request | Do not read the status then write it. Put `status: { in: ['pending','paid'] }` in the `WHERE` and restock only if `count === 1` | High |
 | **Day runs out** | It is 4pm and bulk actions is not working | **Drop bulk actions.** Two finished bonuses beat three half-done. Decide at 4pm, not 7pm | High |
 
 ### Blocker log
