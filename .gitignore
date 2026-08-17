@@ -13,7 +13,8 @@ node_modules
 generated
 
 # Logs
-logs
+# Leading slash: root-level only, so docs/logs/ stays tracked
+/logs
 *.log
 
 # Misc
