@@ -9,4 +9,10 @@ export default defineNuxtConfig({
   eslint: {
     config: { stylistic: true },
   },
+  icon: {
+    clientBundle: {
+      // Automatically includes statically-detected icon usages
+      scan: true,
+    },
+  },
 })

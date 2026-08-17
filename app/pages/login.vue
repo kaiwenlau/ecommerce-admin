@@ -2,7 +2,11 @@
 import { loginSchema } from '#shared/schemas/auth'
 import type { FetchError } from 'ofetch'
 
-definePageMeta({ public: true })
+definePageMeta({
+  public: true,
+  layout: false,
+})
+
 useHead({ title: 'Sign in' })
 const route = useRoute()
 const { fetch: refreshSession } = useUserSession()
@@ -14,7 +18,7 @@ const credentials = reactive({
   password: '',
 })
 
-async function onLogin() {
+const onLogin = async () => {
   errorMessage.value = ''
   isPending.value = true
 

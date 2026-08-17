@@ -1,46 +1,26 @@
 <script setup lang="ts">
 useHead({ title: 'Dashboard' })
-const { user, clear } = useUserSession()
-const isLoggingOut = ref(false)
-
-async function onLogout() {
-  isLoggingOut.value = true
-  await $fetch('/api/auth/logout', {
-    method: 'POST',
-  })
-  await clear()
-  await navigateTo('/login')
-}
 </script>
 
 <template>
-  <div class="min-h-screen p-8">
-    <div class="max-w-2xl mx-auto space-y-6">
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <h1 class="text-2xl font-semibold">
-            Dashboard
-          </h1>
-          <p class="text-sm text-muted mt-1">
-            Signed in as {{ user?.email }}
-          </p>
-        </div>
+  <div class="space-y-6">
+    <h1 class="text-2xl font-semibold">
+      Dashboard
+    </h1>
 
+    <UCard>
+      <p class="text-sm text-muted">
+        Coming soon. Analytics will be built on Day 5.
+      </p>
+
+      <template #footer>
         <UButton
-          color="neutral"
-          variant="subtle"
-          :loading="isLoggingOut"
-          @click="onLogout"
+          to="/products"
+          trailing-icon="i-lucide-arrow-right"
         >
-          Sign out
+          Go to product page
         </UButton>
-      </div>
-
-      <UCard>
-        <p class="text-sm text-muted">
-          The product list arrives this afternoon.
-        </p>
-      </UCard>
-    </div>
+      </template>
+    </UCard>
   </div>
 </template>
