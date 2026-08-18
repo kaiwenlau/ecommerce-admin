@@ -108,7 +108,7 @@ const main = async () => {
 
     // Snapshot name and price of the product
     // shows what actually bought and paid if product later renamed or repriced
-    const items = pickedProduct.map(product => ({
+    const pickedProductSnapshot = pickedProduct.map(product => ({
       productId: product.id,
       name: product.name,
       unitPriceCents: product.priceCents,
@@ -120,34 +120,26 @@ const main = async () => {
     // so this guarantees the partial-failure demo has real failures
     const isForced = index < 3
 
+    const items = isForced
+      ? [{
+          productId: products[index]!.id,
+          name: products[index]!.name,
+          unitPriceCents: products[index]!.priceCents,
+          qty: 1,
+        }]
+      : pickedProductSnapshot
+
     return {
       customerId: faker.helpers.arrayElement(customers).id,
       status: isForced ? 'pending' as const : faker.helpers.arrayElement(ORDER_STATUSES),
       totalCents: items.reduce((sum, item) => sum + item.unitPriceCents * item.qty, 0),
       createdAt: faker.date.between({ from: '2026-02-01', to: '2026-08-10' }),
-      items: isForced
-        ? [{
-            productId: products[index]!.id,
-            name: products[index]!.name,
-            unitPriceCents: products[index]!.priceCents,
-            qty: 1,
-          }]
-        : items,
+      items: items,
     }
   })
   await prisma.order.createMany({
     data: orderPlans.map(({ items: _items, ...order }) => order),
   })
-  // Recompute totals for the forced orders
-  for (const [i, plan] of orderPlans.entries()) {
-    const total = plan.items.reduce((sum, item) => sum + item.unitPriceCents * item.qty, 0)
-    if (total !== plan.totalCents) {
-      await prisma.order.update({
-        where: { id: orders[i]!.id },
-        data: { totalCents: total },
-      })
-    }
-  }
 
   // orderItems - 200 orders with 1-4 items each (except first 3 forced orders 1 item each)
   const orders = await prisma.order.findMany({

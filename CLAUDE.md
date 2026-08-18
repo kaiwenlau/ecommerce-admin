@@ -20,6 +20,31 @@ Do not read `docs/logs/` unless asked. They are day journals, not reference, and
     - Prefer **setup** stores (`defineStore('x', () => { ... })`) over options stores.
     - Setup stores are all-arrow and have no `this`, so they don't reintroduce the one case where `function` is unavoidable in component code.
 
+## Comments — write them for someone who knows JS and Vue, not this stack
+
+The author is solid on plain JavaScript and Vue 3, but new to **Nuxt, Zod, Prisma, Postgres and Pinia**. Comments should carry the weight there.
+
+- **Explain JavaScript only where it genuinely surprises.** Nothing on `map`, `await`, spread or a ternary — those are day-to-day. Do comment the traps: temporal dead zone, `this` binding, a shared reference being mutated in place.
+- **Do explain what a library call actually does**, in plain words, before naming its API. "Zod keeps only the fields listed here and throws the rest away" beats "`parse()` strips undeclared keys".
+- **Name the other half.** If the sentence is about something happening in another file, say which file or endpoint. A comment on a schema that talks about parsing must say where the parsing runs.
+- **Say why, not what.** The code already says what. `Math.round` needs a comment because `19.99 * 100` is `1998.9999999999998`; `.trim()` does not.
+- **One idea per comment.** If it needs three clauses and a dash, it is two comments.
+- **Name SQL and database behaviour explicitly** — indexes, transactions, constraints, what a query costs. Same for Prisma methods that hide a query.
+
+Bad — mentions an API that is not on the page, and assumes the reader knows what it does:
+
+```ts
+// `parse()` drops undeclared keys, so only its OUTPUT reaches Prisma.
+```
+
+Good — plain words, and it says where the work happens:
+
+```ts
+// Zod keeps only the fields listed here and throws away anything else it is
+// given. `POST /api/products` checks the request body against this schema and
+// saves what comes back — so a request that also sent `deletedAt` is dropped here.
+```
+
 ## Two things that are easy to get wrong
 
 - **`status` and `deletedAt` are different features.** Archive (`status='archived'`) is reversible and keeps the SKU. Delete (`deletedAt`) is neither. See `docs/decisions/DATABASE-DESIGN.md` §3 before touching either.

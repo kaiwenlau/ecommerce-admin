@@ -1,6 +1,12 @@
 // validation
 export const PASSWORD_MIN_LENGTH = 8
 export const SEARCH_MAX_LENGTH = 100
+export const SKU_MAX_LENGTH = 32
+export const NAME_MAX_LENGTH = 120
+export const DESCRIPTION_MAX_LENGTH = 2000
+export const CATEGORY_MAX_LENGTH = 60
+export const PRICE_MAX_UNITS = 1_000_000
+export const STOCK_MAX = 1_000_000
 
 // pagination
 export const PAGE_SIZE = 20
@@ -23,4 +29,26 @@ export const MESSAGES = {
   passwordTooShort: `Password must be at least ${PASSWORD_MIN_LENGTH} characters`,
   badCredentials: 'Incorrect email or password',
   unexpected: 'Something went wrong. Please try again.',
+
+  // product form
+  skuRequired: 'SKU is required',
+  skuTooLong: `SKU must be at most ${SKU_MAX_LENGTH} characters`,
+  skuTaken: 'SKU already exists',
+  nameRequired: 'Name is required',
+  nameTooLong: `Name must be at most ${NAME_MAX_LENGTH} characters`,
+  descriptionTooLong: `Description must be at most ${DESCRIPTION_MAX_LENGTH} characters`,
+  categoryRequired: 'Category is required',
+  categoryTooLong: `Category must be at most ${CATEGORY_MAX_LENGTH} characters`,
+  priceRequired: 'Price is required',
+  priceInvalid: 'Price must be a number, with at most 2 decimal places',
+  priceNotPositive: 'Price must be greater than 0',
+  priceTooLarge: `Price must be less than ${PRICE_MAX_UNITS}`,
+  stockInvalid: 'Stock must be a whole number',
+  stockNegative: 'Stock cannot be negative',
+  stockTooLarge: `Stock must be at most ${STOCK_MAX}`,
+  statusInvalid: 'Pick a status',
+
+  // product write endpoints
+  productNotFound: 'Product not found',
+  productOnOpenOrders: 'This product is on orders that still have to be fulfilled',
 } as const

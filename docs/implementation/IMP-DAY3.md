@@ -4,25 +4,114 @@
 
 **First 15 minutes:** read `docs/logs/NOTES.md` and run the app. It has been 4 days.
 
-## Tasks
+Split into two halves. The morning is the write path, and everything on it is provable with
+`curl` and `vitest`. The evening is the screens, and nothing on it is provable that way —
+Day 2 shipped two bugs that rendered perfectly server-side and were broken for a real user.
+The seam is there on purpose.
+
+---
+
+## Morning — the write path
+
+Server only. No pages. Finish the gate below before opening a browser.
+
+### Tasks
+
+**Schemas**
+
+- [x] Write the shared Zod write schemas in `shared/schemas/product.ts`, next to the list
+      query schema that is already there
+- [x] **No `.catch()` on any of them.** The list query catches because a mangled URL should
+      degrade to a default; a bad price on a form must fail loudly
+- [x] Price arrives as `"19.99"` and reaches Prisma as `1999`. Convert with `.transform()`
+      in the schema, in **one** place. Round, never truncate — `19.99 * 100` is `1998.999…`
+
+**Archive and delete — two features, not one**
+
+Full rules in [DATABASE-DESIGN.md](../decisions/DATABASE-DESIGN.md) §3. Archive is
+`status = 'archived'`, reversible, keeps the SKU. Delete is `deletedAt`, neither. Build the
+guard once, here — Day 5's bulk action calls the same function.
+
+- [x] Write `server/utils/productRemovable.ts` — `checkRemovable(productId) → { ok, reason? }`.
+      Not `ok` when the product sits on a `pending` or `paid` order
+- [x] Same function also returns how many **finished** orders the product appears on. That
+      does not block. The evening's delete modal shows the number
+
+**Endpoints**
+
+- [x] `POST /api/products` — parse with Zod, then **pass the parsed object to Prisma, never
+      the raw `body`**. `parse()` drops undeclared keys; `create({ data: body })` would not
+- [x] `PATCH /api/products/:id` — status may move between `draft`/`active`/`archived`.
+      **Run the guard on a move to `archived`**
+- [x] `DELETE /api/products/:id` — set `deletedAt`, do not really delete. **Runs the same
+      guard.** Delete is more destructive than archive, so it can never be the more permissive
+- [x] Do **not** touch `status` when deleting. A deleted row keeps its old status and nothing
+      ever reads it
+- [x] Never resurrect a soft-deleted row: every write scopes by `deletedAt: null` too
+
+**Error shape**
+
+The morning owns the shape on the wire. The evening owns rendering it.
+
+- [x] On a validation failure return `z.flattenError(error).fieldErrors` — Zod 4 renamed
+      v3's `error.flatten()`. Wire shape is `{ fieldErrors: { sku: ['…'] } }`, the same
+      shape `POST /api/auth/login` already returns, so the forms read one shape
+- [x] The `[{ name, message }]` conversion `setErrors()` wants is a **client** concern and
+      belongs in one client helper — that is the evening's first job
+- [x] Catch Prisma error `P2002` (duplicate) and turn it into a `sku` **field error**, not a
+      toast message
+
+### Done when
+
+- [x] All three routes return **401** with no cookie, before any database work
+- [x] Posting bad data with `curl` fails on the server — no browser validation involved
+- [x] A `curl` carrying a column the form never showed does **not** write it. Re-read the row
+- [x] A duplicate SKU comes back as a `sku` entry in `fieldErrors`, not a message string
+- [x] Archive **and** delete are both refused for a product on a `pending`/`paid` order, and
+      both allowed for one that is not
+- [x] A deleted product is gone from `GET /api/products` under **every** `?status=`, `All`
+      included, and its SKU can be reused by a new `POST`
+
+### Expected blockers
+
+**Most likely this morning:** the Zod v4 `flatten()` shape. Everything downstream is built on
+it, so check what it really returns before writing the helper.
+
+| What might go wrong | How I will know | What to do | Risk |
+|---|---|---|---|
+| **Prisma duplicate error is unreadable** | A wall of Prisma text instead of "SKU already exists" | Catch code `P2002`. The offending field is in `err.meta.target`. Map it to a field error, never a toast | High |
+| Zod v4 `flatten()` differs from v3 | `fieldErrors` is undefined, or nested unexpectedly | This project is on Zod 4. Check the shape in a REPL once, then build the helper around what it really returns | Medium |
+| Price sent as `"19.99"`, stored as `1999` | Prices show 100× too small, or as `19.99` in the database | Convert in the Zod schema with `.transform()`, in **one** place. Never convert ad hoc in a component | Medium |
+| Deleted products still show | A product I deleted reappears in the list | A query is missing `where: { deletedAt: null }`. Easy to miss on one of several queries | Medium |
+| **Archive and delete get muddled** | The Archive button sets `deletedAt`, or Delete sets `status='archived'`, or `?status=archived` hides deleted rows by accident | Two columns, two features. `deletedAt: null` is unconditional on every list; the status filter layers on top and never replaces it. Re-read [DATABASE-DESIGN.md](../decisions/DATABASE-DESIGN.md) §3 before wiring either button | High |
+| **The guard only runs on one route** | I can archive a product from its edit page that the bulk action refuses | One `checkRemovable()` in `server/utils/`, called by `PATCH`, `DELETE` and the bulk endpoint. Never re-implement the rule per route | High |
+| **A `curl` can set columns the form never showed** | `curl -d '{"name":"X","stock":999999}'` succeeds and the stock really changes | The handler passed raw `body` to Prisma instead of the parsed object. Only `parse()` output goes to the database | High |
+
+---
+
+## Evening — the screens
+
+Everything here needs a real browser. `curl` and server-rendered HTML cannot prove a single
+line of it.
+
+### Tasks
 
 **Forms**
 
-- [ ] Write the shared Zod schemas in `shared/schemas/product.ts`
-- [ ] `POST /api/products` — parse with Zod, then **pass the parsed object to Prisma, never the raw `body`**. `parse()` drops undeclared keys; `create({ data: body })` would not
-**Archive and delete — two features, not one**
+- [ ] Build create and edit pages using `UForm` with the **same schema the server imports**
+- [ ] **Field-level errors:** write the ONE helper that turns the morning's
+      `{ sku: ['…'] }` into the `[{ name, message }]` `form.setErrors()` wants, and use it
+      on every form
+- [ ] The duplicate SKU lands under the SKU box, not in a toast
 
-Full rules in [DATABASE-DESIGN.md](../decisions/DATABASE-DESIGN.md) §3. Archive is `status = 'archived'`, reversible, keeps the SKU. Delete is `deletedAt`, neither. Build the guard once, here — Day 5's bulk action calls the same function.
+**Confirm modals**
 
-- [ ] Write `server/utils/productRemovable.ts` — `checkRemovable(productId) → { ok, reason? }`. Not `ok` when the product sits on a `pending` or `paid` order
-- [ ] `PATCH /api/products/:id` — status may move between `draft`/`active`/`archived`. **Run the guard on a move to `archived`**
-- [ ] `DELETE /api/products/:id` — set `deletedAt`, do not really delete. **Runs the same guard.** Delete is more destructive than archive, so it can never be the more permissive
-- [ ] Do **not** touch `status` when deleting. A deleted row keeps its old status and nothing ever reads it
-- [ ] Build create and edit pages using `UForm` with the same schema
-- [ ] **Field-level errors:** on failure return `error.flatten().fieldErrors`, turn it into `[{ name, message }]`, pass to `form.setErrors()`
-- [ ] Catch Prisma error `P2002` (duplicate) and turn it into a `sku` field error, not a toast
-- [ ] Both archive and delete need a confirm modal, and **the wording differs** — archive: reversible, SKU stays reserved. Delete: not reversible here, frees the SKU
-- [ ] The delete modal also **warns** (does not block) when the product appears on *finished* orders, and says how many. That is history, not outstanding work
+- [ ] Both archive and delete need a confirm modal, and **the wording differs** — archive:
+      reversible, SKU stays reserved. Delete: not reversible here, frees the SKU
+- [ ] The delete modal **warns** (does not block) when the product appears on *finished*
+      orders, and says how many. That is history, not outstanding work. The count comes from
+      `checkRemovable()`
+- [ ] Row actions on `/products` wire to both
 
 **The 4 UI states — every screen that loads data**
 
@@ -31,36 +120,45 @@ Full rules in [DATABASE-DESIGN.md](../decisions/DATABASE-DESIGN.md) §3. Archive
 - [ ] **Error** — message plus a Retry button
 - [ ] **'Unauthorised'** — a 401 from any endpoint sends the user to `/login`
 
-**Why no 403:** 403 is unreachable in this version. Because there is only one admin user and no roles, so every logged-in request is admin, and he allowed to do everything. There is no request that is both authenticated and forbidden.
+**Why no 403:** 403 is unreachable in this version. Because there is only one admin user and
+no roles, so every logged-in request is admin, and he allowed to do everything. There is no
+request that is both authenticated and forbidden.
 
 - **401** = Unauthenticated. Not logged in, or session expired.
 - **403** = Authenticated, but unauthorised. Access denied.
 
-## Done when
+### Done when
 
 - [ ] Saving a duplicate SKU shows **"SKU already exists" under the SKU box** — not a toast
 - [ ] Turning off JavaScript validation and posting bad data still fails on the server
 - [ ] Every list screen shows something sensible when empty
 - [ ] Stopping the database mid-use shows the error state, and Retry works after restart
+- [ ] Archiving and deleting both work from the list, each behind its own worded modal
 
-## Expected blockers
+### Expected blockers
 
-**Most likely today:** the Zod → `setErrors` shape mismatch. It is the core requirement of the day, so solve it first and reuse the helper everywhere.
+**Most likely this evening:** the Zod → `setErrors` shape mismatch. It is the core
+requirement of the day, so solve it first and reuse the helper everywhere.
 
 | What might go wrong | How I will know | What to do | Risk |
 |---|---|---|---|
 | **`setErrors` does nothing** | Server rejects the save, but no red text appears under any field | Shape mismatch. `UForm` wants `[{ name: "sku", message: "..." }]`; Zod gives `{ sku: ["..."] }`. Write **one** helper to convert, use it on every form | High |
-| **Prisma duplicate error is unreadable** | A wall of Prisma text instead of "SKU already exists" | Catch code `P2002`. The offending field is in `err.meta.target`. Map it to a field error, never a toast | High |
-| Zod v4 `flatten()` differs from v3 | `fieldErrors` is undefined, or nested unexpectedly | This project is on Zod 4. Check the shape in a REPL once, then build the helper around what it really returns | Medium |
-| Price sent as `"19.99"`, stored as `1999` | Prices show 100× too small, or as `19.99` in the database | Convert in the Zod schema with `.transform()`, in **one** place. Never convert ad hoc in a component | Medium |
-| Deleted products still show | A product I deleted reappears in the list | A query is missing `where: { deletedAt: null }`. Easy to miss on one of several queries | Medium |
-| **Archive and delete get muddled** | The Archive button sets `deletedAt`, or Delete sets `status='archived'`, or `?status=archived` hides deleted rows by accident | Two columns, two features. `deletedAt: null` is unconditional on every list; the status filter layers on top and never replaces it. Re-read [DATABASE-DESIGN.md](../decisions/DATABASE-DESIGN.md) §3 before wiring either button | High |
-| **The guard only runs on one route** | I can archive a product from its edit page that the bulk action refuses | One `checkRemovable()` in `server/utils/`, called by `PATCH`, `DELETE` and the bulk endpoint. Never re-implement the rule per route | High |
 | Client validation passes, server rejects | Form submits happily, then fails server-side | The two are using different schemas. They must import the same file from `shared/` | High |
-| **A `curl` can set columns the form never showed** | `curl -d '{"name":"X","stock":999999}'` succeeds and the stock really changes | The handler passed raw `body` to Prisma instead of the parsed object. Only `parse()` output goes to the database | High |
 | Empty state hard to test | Cannot tell whether the empty state works | Force it with `?search=zzzzzz` | Low |
 
 ## Blocker log
+
+### Morning
+
+| What happened | Why it cost time | What I did | Time lost |
+|---|---|---|---|
+| **`npm run db:reset` crashed the seed** — `ReferenceError: Cannot access 'orders' before initialization`. Pre-existing, nothing to do with Day 3 | Latent since the forced-orders edit. Nothing had re-seeded from scratch since, so it had never run. Found only because the `curl` gate left test rows and I went to rebuild | The "recompute totals for the forced orders" loop read `orders`, declared 12 lines *below* it. The loop existed only because `totalCents` was summed from the pre-substitution items. Computed the total from the items the order actually gets and deleted the loop. All 200 order totals now agree with their line items; the 3 forced ones did not before | ~20 min |
+| **Predicted, and it happened:** Zod v4 dropped `error.flatten()` | The table said to check the shape once before building on it, so I did — one throwaway script, before writing the helper | It is `z.flattenError(error)` now, and `fieldErrors` inside is unchanged. `login.post.ts` was already using it, so the wire shape was decided before I got here | ~5 min |
+| **A *missing* field is not a *blank* field.** `{}` gave "Invalid input: expected string, received undefined" where a blank string gave "SKU is required" | Only visible through `curl`. The form always sends a string, so every browser path shows the friendly message and the ugly one hides behind the API | `.min(1, msg)` only fires once the value IS a string. Added `z.string({ error: msg })` so the missing case reads the same, and a test row per field | ~10 min |
+
+**Predictions that did not fire:** the P2002 wall of text (caught first time), archive/delete getting muddled, and raw `body` reaching Prisma. Cheap insurance — the last two were the reason the endpoints were written the way they were.
+
+### Evening
 
 | What happened | Why it cost time | What I did | Time lost |
 |---|---|---|---|
