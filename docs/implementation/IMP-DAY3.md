@@ -2,7 +2,7 @@
 
 **Goal:** I can add, edit and delete a product. Every screen handles all 4 states.
 
-**First 15 minutes:** read `docs/NOTES.md` and run the app. It has been 4 days.
+**First 15 minutes:** read `docs/logs/NOTES.md` and run the app. It has been 4 days.
 
 ## Tasks
 

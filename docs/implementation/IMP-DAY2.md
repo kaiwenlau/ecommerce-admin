@@ -31,7 +31,7 @@
 
 **End of day (do not skip)**
 
-- [x] Write a short note in `docs/NOTES.md`: what works, what is half-done, what is next
+- [x] Write a short note in `docs/logs/NOTES.md`: what works, what is half-done, what is next
 
 ## Done when
 
