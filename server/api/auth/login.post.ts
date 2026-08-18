@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MESSAGES } from '#shared/constants'
 import { loginSchema } from '#shared/schemas/auth'
 
 export default defineEventHandler(async (event) => {
@@ -19,7 +20,7 @@ export default defineEventHandler(async (event) => {
   if (!admin || !await verifyPassword(admin.passwordHash, password)) {
     setResponseStatus(event, 401)
     return {
-      message: 'Incorrect email or password',
+      message: MESSAGES.badCredentials,
     }
   }
 

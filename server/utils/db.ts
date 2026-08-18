@@ -1,5 +1,6 @@
 import { PrismaPg } from '@prisma/adapter-pg'
-import { PrismaClient } from '../../generated/prisma/client'
+import { MESSAGES } from '#shared/constants'
+import { PrismaClient } from '~~/generated/prisma/client'
 
 // Prisma 7 no longer bundles a query engine. It connects through a driver
 // adapter instead, so the pg adapter below is required — v6 guides that just
@@ -16,7 +17,7 @@ const createClient = () => {
   const connectionString = process.env.DATABASE_URL
 
   if (!connectionString) {
-    throw new Error('DATABASE_URL is not set. Copy .env.example to .env.')
+    throw new Error(MESSAGES.missingDatabaseUrl)
   }
 
   return new PrismaClient({

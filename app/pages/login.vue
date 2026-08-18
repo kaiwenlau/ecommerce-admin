@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { MESSAGES } from '#shared/constants'
 import { loginSchema } from '#shared/schemas/auth'
 import type { FetchError } from 'ofetch'
 
@@ -35,7 +36,7 @@ const onLogin = async () => {
   }
   catch (error) {
     const fetchError = error as FetchError
-    errorMessage.value = fetchError.data?.message ?? 'Something went wrong. Please try again.'
+    errorMessage.value = fetchError.data?.message ?? MESSAGES.unexpected
   }
   finally {
     isPending.value = false
