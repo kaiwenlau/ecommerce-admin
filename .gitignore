@@ -14,7 +14,7 @@ generated
 
 # Logs
 # Leading slash: root-level only, so docs/logs/ stays tracked
-/logs
+/docs/logs
 *.log
 
 # Misc
