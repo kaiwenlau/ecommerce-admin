@@ -96,10 +96,13 @@ const statusItems = [
   ...PRODUCT_STATUSES.map(value => ({ label: value, value })),
 ]
 
+// Mirrors what `useFetch` hands back, not the Prisma row - the payload is serialised in transit.
+type ProductRow = NonNullable<typeof data.value>['items'][number]
+
 /**
  * Defines the columns for the product table
  */
-const columns: TableColumn<NonNullable<typeof data.value>['items'][number]>[] = [
+const columns: TableColumn<ProductRow>[] = [
   { id: 'select' },
   { accessorKey: 'sku', header: 'SKU' },
   { accessorKey: 'name', header: 'Name' },
@@ -184,7 +187,7 @@ const STATUS_COLOR = {
         :data="data?.items ?? []"
         :columns="columns"
         :loading="isLoading"
-        :get-row-id="(row: { id: number }) => String(row.id)"
+        :get-row-id="(row: ProductRow) => String(row.id)"
         class="border border-default rounded-lg"
       >
         <template #select-header="{ table }">
