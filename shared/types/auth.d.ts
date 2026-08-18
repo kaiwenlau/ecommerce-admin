@@ -1,5 +1,5 @@
-// Tells TypeScript what we put in the session, so `user.email` is typed
-// everywhere instead of being `any`.
+// Let TypeScript know what we put in the session
+// `user.email` is typed instead of being `any`
 
 declare module '#auth-utils' {
   interface User {
@@ -12,7 +12,7 @@ declare module '#auth-utils' {
   }
 }
 
-// Lets a page mark itself reachable without logging in, e.g. /login.
+// Let a page mark itself reachable without logging in, e.g. /login.
 declare module 'vue-router' {
   interface RouteMeta {
     public?: boolean

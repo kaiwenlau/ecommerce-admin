@@ -21,7 +21,7 @@ const ORDER_STATUSES = ['pending', 'paid', 'shipped', 'delivered', 'cancelled'] 
 // Deterministic data, so re-seeding gives the same demo every time.
 faker.seed(20260811)
 
-async function main() {
+const main = async () => {
   console.log('Clearing existing data...')
   // Order matters: children before parents.
   await prisma.orderStatusEvent.deleteMany()
@@ -31,23 +31,25 @@ async function main() {
   await prisma.customer.deleteMany()
   await prisma.adminUser.deleteMany()
 
-  // ---------------------------------------------------------------- admin
+  // admin
   const email = process.env.ADMIN_EMAIL ?? 'admin@example.com'
   const password = process.env.ADMIN_PASSWORD ?? 'admin1234'
-
   await prisma.adminUser.create({
-    data: { email, passwordHash: await hasher.make(password) },
+    data: {
+      email,
+      passwordHash: await hasher.make(password),
+    },
   })
   console.log(`Admin user: ${email} / ${password}`)
 
-  // ------------------------------------------------------------ customers
+  // customers
   await prisma.customer.createMany({
     data: Array.from({ length: 30 }, () => {
       const name = faker.person.fullName()
       return {
         name,
-        // Derive the email from the name so the data looks coherent, and add a
-        // unique suffix so faker never collides on the unique constraint.
+        // Derive the email from the name and add a unique suffix,
+        // so faker never collides on unique constraint
         email: faker.internet.email({
           firstName: name.split(' ')[0],
           lastName: `${name.split(' ')[1]}${faker.string.numeric(3)}`,
@@ -55,27 +57,42 @@ async function main() {
       }
     }),
   })
-  const customers = await prisma.customer.findMany({ select: { id: true } })
+  const customers = await prisma.customer.findMany({
+    select: { id: true },
+  })
   console.log(`Created ${customers.length} customers`)
 
-  // ------------------------------------------------------------- products
+  // products
   await prisma.product.createMany({
     data: Array.from({ length: 50 }, (_, i) => ({
       sku: `SKU-${String(i + 1).padStart(4, '0')}`,
       name: `${faker.commerce.productAdjective()} ${faker.commerce.product()}`,
       description: faker.commerce.productDescription(),
-      // Money is whole cents. $19.99 is 1999.
-      priceCents: faker.number.int({ min: 499, max: 29999 }),
-      // A few zero-stock products so the "out of stock" path is visible.
+      priceCents: faker.number.int({ min: 499, max: 29999 }), // price in whole cents
       stock: faker.helpers.weightedArrayElement([
-        { weight: 8, value: faker.number.int({ min: 1, max: 120 }) },
-        { weight: 1, value: 0 },
+        {
+          weight: 8,
+          value: faker.number.int({ min: 1, max: 120 }),
+        },
+        {
+          weight: 1,
+          value: 0,
+        }, // some zero-stock products to display out-of-stock condition
       ]),
       category: faker.helpers.arrayElement(CATEGORIES),
       status: faker.helpers.weightedArrayElement([
-        { weight: 8, value: 'active' as const },
-        { weight: 1, value: 'draft' as const },
-        { weight: 1, value: 'archived' as const },
+        {
+          weight: 8,
+          value: 'active' as const,
+        },
+        {
+          weight: 1,
+          value: 'draft' as const,
+        },
+        {
+          weight: 1,
+          value: 'archived' as const,
+        },
       ]),
     })),
   })
@@ -85,31 +102,30 @@ async function main() {
   })
   console.log(`Created ${products.length} products`)
 
-  // --------------------------------------------------------------- orders
-  // Build the orders first so we can compute totals from their line items.
+  // orders - build orders first, then orderItems
   const orderPlans = Array.from({ length: 200 }, (_, index) => {
-    const picked = faker.helpers.arrayElements(products, faker.number.int({ min: 1, max: 4 }))
+    const pickedProduct = faker.helpers.arrayElements(products, faker.number.int({ min: 1, max: 4 }))
 
-    const items = picked.map(product => ({
+    // Snapshot name and price of the product
+    // shows what actually bought and paid if product later renamed or repriced
+    const items = pickedProduct.map(product => ({
       productId: product.id,
-      // Snapshot: if the product is later renamed or repriced, this order
-      // still shows what the customer actually bought and paid.
       name: product.name,
       unitPriceCents: product.priceCents,
       qty: faker.number.int({ min: 1, max: 3 }),
     }))
 
-    // The first 3 orders are forced to 'pending' and to contain products 1-3.
-    // Day 5's bulk archive refuses to archive a product with unfulfilled
-    // orders, so this guarantees the partial-failure demo has real failures.
-    const forced = index < 3
+    // The first 3 orders are forced to 'pending' and to contain products 1-3
+    // Day 5's bulk archive refuses to archive a product with unfulfilled orders,
+    // so this guarantees the partial-failure demo has real failures
+    const isForced = index < 3
 
     return {
       customerId: faker.helpers.arrayElement(customers).id,
-      status: forced ? 'pending' as const : faker.helpers.arrayElement(ORDER_STATUSES),
+      status: isForced ? 'pending' as const : faker.helpers.arrayElement(ORDER_STATUSES),
       totalCents: items.reduce((sum, item) => sum + item.unitPriceCents * item.qty, 0),
       createdAt: faker.date.between({ from: '2026-02-01', to: '2026-08-10' }),
-      items: forced
+      items: isForced
         ? [{
             productId: products[index]!.id,
             name: products[index]!.name,
@@ -119,22 +135,10 @@ async function main() {
         : items,
     }
   })
-
   await prisma.order.createMany({
     data: orderPlans.map(({ items: _items, ...order }) => order),
   })
-  const orders = await prisma.order.findMany({
-    select: { id: true },
-    orderBy: { id: 'asc' },
-  })
-
-  // Recompute totals for the forced orders, whose items were replaced above.
-  await prisma.orderItem.createMany({
-    data: orderPlans.flatMap((plan, i) =>
-      plan.items.map(item => ({ ...item, orderId: orders[i]!.id })),
-    ),
-  })
-
+  // Recompute totals for the forced orders
   for (const [i, plan] of orderPlans.entries()) {
     const total = plan.items.reduce((sum, item) => sum + item.unitPriceCents * item.qty, 0)
     if (total !== plan.totalCents) {
@@ -145,16 +149,29 @@ async function main() {
     }
   }
 
+  // orderItems - 200 orders with 1-4 items each (except first 3 forced orders 1 item each)
+  const orders = await prisma.order.findMany({
+    select: { id: true },
+    orderBy: { id: 'asc' },
+  })
+  await prisma.orderItem.createMany({
+    data: orderPlans.flatMap((plan, i) =>
+      plan.items.map(item => ({
+        ...item,
+        orderId: orders[i]!.id,
+      })),
+    ),
+  })
   const itemCount = await prisma.orderItem.count()
   console.log(`Created ${orders.length} orders with ${itemCount} line items`)
 
-  // -------------------------------------------------- audit trail history
-  // Give every order the status trail it would have accumulated.
-  // Every order starts as `pending`, so every trail must start there
-  // including `cancelled` status, which were pending, paid, until someone cancelled them.
+  // audit trail history - accumulated status of each order, every order starts as `pending`
   const flow = ['pending', 'paid', 'shipped', 'delivered'] as const
-  const placed = await prisma.order.findMany({ select: { id: true, status: true, createdAt: true } })
+  const placed = await prisma.order.findMany({
+    select: { id: true, status: true, createdAt: true },
+  })
 
+  // `cancelled` status were pending or pending-paid
   await prisma.orderStatusEvent.createMany({
     data: placed.flatMap((order) => {
       const path = order.status === 'cancelled'
@@ -171,6 +188,76 @@ async function main() {
     }),
   })
   console.log(`Created ${await prisma.orderStatusEvent.count()} status events`)
+
+  // soft deletions - no hard delete
+  // Create 3 new products for soft-deletion.
+  // The orders above either `pending` or `paid` order, Day 3's `checkRemovable()` will refuses to delete
+  await prisma.product.createMany({
+    data: Array.from({ length: 3 }, (_, i) => ({
+      sku: `SKU-${String(i + 51).padStart(4, '0')}`,
+      name: `${faker.commerce.productAdjective()} ${faker.commerce.product()}`,
+      description: faker.commerce.productDescription(),
+      priceCents: faker.number.int({ min: 499, max: 29999 }), // price in whole cents
+      stock: faker.number.int({ min: 1, max: 120 }),
+      category: faker.helpers.arrayElement(CATEGORIES),
+      status: 'active' as const,
+    })),
+  })
+  const doomedProduct = await prisma.product.findMany({
+    where: { sku: { in: ['SKU-0051', 'SKU-0052', 'SKU-0053'] } },
+    select: { id: true, sku: true, name: true, priceCents: true },
+    orderBy: { id: 'asc' },
+  })
+
+  // Find the first delivered order, add a doom product, update the order total
+  const finishedOrder = await prisma.order.findFirst({
+    where: { status: 'delivered' },
+    select: { id: true, totalCents: true },
+    orderBy: { id: 'asc' },
+  })
+  if (finishedOrder) {
+    const line = doomedProduct[0]! // non-null assertion
+    await prisma.orderItem.create({
+      data: {
+        orderId: finishedOrder.id,
+        productId: line.id,
+        name: line.name,
+        unitPriceCents: line.priceCents,
+        qty: 1,
+      },
+    })
+    await prisma.order.update({
+      where: { id: finishedOrder.id },
+      data: { totalCents: finishedOrder.totalCents + line.priceCents },
+    })
+  }
+
+  // Irreversible. Deleting does NOT touch `status`, keeps whatever status it had.
+  await prisma.product.updateMany({
+    where: { id: { in: doomedProduct.map(product => product.id) } },
+    data: { deletedAt: faker.date.between({ from: '2026-06-01', to: '2026-08-10' }) },
+  })
+
+  // Create new product with reused SKU - partial unique index in action
+  const reusedSku = doomedProduct[0]!.sku
+  await prisma.product.create({
+    data: {
+      sku: reusedSku,
+      name: `${faker.commerce.productAdjective()} ${faker.commerce.product()}`,
+      description: faker.commerce.productDescription(),
+      priceCents: faker.number.int({ min: 499, max: 29999 }),
+      stock: faker.number.int({ min: 1, max: 120 }),
+      category: faker.helpers.arrayElement(CATEGORIES),
+      status: 'active',
+    },
+  })
+  const live = await prisma.product.count({
+    where: { deletedAt: null },
+  })
+  const deleted = await prisma.product.count({
+    where: { deletedAt: { not: null } },
+  })
+  console.log(`Products: ${live} live, ${deleted} soft-deleted (SKU ${reusedSku} reused by a live product)`)
 }
 
 main()

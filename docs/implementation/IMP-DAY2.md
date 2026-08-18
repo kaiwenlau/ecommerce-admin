@@ -39,21 +39,18 @@
 - [x] `curl http://localhost:3000/api/products` returns 401 with no cookie
 - [x] This URL works after a full refresh: `/products?search=shirt&status=active&page=2&sort=price&dir=desc`
 - [x] Copying that URL into a new tab shows the same filtered list
-- [ ] The browser back button goes back to the previous filter
+- [x] The browser back button goes back to the previous filter
 - [x] `?status=archived` lists the archived products the seed made — archived is a **status**, and it is reachable
 - [x] A soft-deleted product from the seed appears under **no** status filter, `All` included
 - [x] The seed's reused SKU shows exactly **once** — the live product, never the deleted one it took the SKU from
 
-### Still to check by hand in a browser
+### Also checked, in a real browser
 
-Everything above was verified by driving the server: `curl` for the API, and the
-server-rendered HTML of `/products` for the page. That covers every query the
-list can run, but it cannot click. These four are built but unobserved:
-
-- [ ] Back button walks back through previous filters
-- [ ] Search fires **one** request ~300ms after the last keystroke, not one per letter
-- [ ] Ticking rows then changing a filter empties the selection
-- [ ] Skeleton rows on a throttled connection, with no flash of the empty state
+- [x] Back walks back through filters, and Forward returns. Backing onto a `?page=3` entry **stays** on page 3
+- [x] Typing `shirt` fires exactly **one** `/api/products` request, not five
+- [x] Ticking 3 rows then changing the status filter empties the selection
+- [x] Skeleton rows render on a slowed connection, with no flash of the empty state
+- [x] Stopping Postgres shows the error state; Retry recovers once it is back
 
 The demo URL in the list above is worth knowing about: `?search=shirt&status=active`
 matches only **4** products, so `page=2` is genuinely past the end. It renders a
@@ -91,4 +88,22 @@ than claiming nothing matched.
 | **Layouts were never rendering.** Extracted the header and sign-out into `app/layouts/default.vue`, and nothing changed on screen | `app.vue` had a bare `<NuxtPage />`. Nuxt logs `NUXT_E4007` for exactly this, but it is one line in a wall of dev-server output and I only saw it when I went looking for icon warnings | Wrapped it: `<NuxtLayout><NuxtPage /></NuxtLayout>` | ~10 min |
 | **The sort indicator rendered as an invisible blank box.** `arrow-up` and `arrow-down` worked; the third state, the unsorted one, did not | The two that worked only worked *by accident* — Nuxt UI bundles them for its own components. Nuxt Icon bundles only icons it can statically see, and mine come out of a `sortIcon()` function at runtime. So the failure looked icon-specific when it was actually about every icon name the app builds in script. Swapping `chevrons-up-down` for `arrow-up-down` reproduced it exactly and ruled the specific icon out | `npm i -D @iconify-json/lucide` for a local collection, plus `icon: { clientBundle: { scan: true } }` in `nuxt.config.ts` so the bundle is built from a source scan. Bundle went 43 → 44 icons, warnings went to zero | ~25 min |
 
-**About 55 minutes.** The URL-state infinite loop the table predicted as "most likely today, budget an hour" never happened — making `query` a read-only computed over `route.query`, with one writer only ever called from a user action, meant there was no watcher that could feed itself. The hour went to a subtler version of the same mistake instead: not a loop, but a watcher writing the URL in response to a change the *URL* had just made.
+### Then I opened it in an actual browser
+
+Everything above was verified by driving the server with `curl` and reading the
+server-rendered HTML. Two bugs were sitting behind that, and both were invisible
+to it by construction.
+
+| What happened | Why it cost time | What I did | Time lost |
+|---|---|---|---|
+| **The page 500'd the moment it hydrated.** `A <SelectItem /> must have a value prop that is not an empty string` | The server-rendered HTML was *perfect* — 20 rows, correct money, correct sort icons. Every `curl` check passed. Reka UI throws this on the client only, so the whole SSR-based verification pass sailed straight over a page that was completely broken for a real user. My `All statuses` option used `value: ''`, which Reka reserves for "nothing selected, show the placeholder" | Gave `All` the sentinel `'all'` and translated at the component edge. The URL contract is untouched: `status=''` still means all and is still absent from the address bar | ~15 min |
+| **`await useFetch()` suspended the route transition.** Clicking Products from the dashboard left the dashboard on screen until the request landed | The loading state cannot render if the page holding it has not mounted. So the skeleton I had written, and had already "verified" existed, was unreachable code on every client-side navigation. On a fast local database this looks like nothing at all — it only became visible once I stubbed `window.fetch` to add a 4s delay | `lazy: true`. The page mounts immediately in the pending state, the skeleton shows, and the initial server render still ships rows in the HTML | ~20 min |
+
+**About 35 more minutes, and the most valuable half hour of the day.** Both bugs
+were in the parts I had most confidently reported as done. The lesson is narrow
+and worth keeping: server-rendered HTML tells you the query is right. It cannot
+tell you the page works. Hydration errors, route transitions and anything a
+component library validates client-side are all invisible to `curl`, and they
+are exactly where "it renders" and "it works" come apart.
+
+**About 55 minutes** on the server-side blockers. The URL-state infinite loop the table predicted as "most likely today, budget an hour" never happened — making `query` a read-only computed over `route.query`, with one writer only ever called from a user action, meant there was no watcher that could feed itself. The hour went to a subtler version of the same mistake instead: not a loop, but a watcher writing the URL in response to a change the *URL* had just made.
