@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { useDebounceFn } from '@vueuse/core'
-import type { TableColumn } from '@nuxt/ui'
-import { PAGE_SIZE, SEARCH_DEBOUNCE_MS, TABLE_SKELETON_ROWS } from '#shared/constants'
+import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
+import { MESSAGES, PAGE_SIZE, SEARCH_DEBOUNCE_MS, TABLE_SKELETON_ROWS, finishedOrderWarning } from '#shared/constants'
 import { PRODUCT_STATUSES } from '#shared/schemas/product'
 import type { ProductListQuery, ProductStatus } from '#shared/schemas/product'
+import type { RemovableCheck } from '~~/server/utils/productRemovable'
 
 useHead({ title: 'Products' })
 
-const route = useRoute()
-const { clear: clearSession } = useUserSession()
+const toast = useToast()
+const { handleUnauthorized } = useUnauthorized()
 const { query, setSearch, setStatus, setSort, setPage, reset } = useTableQuery()
 
 /**
@@ -41,12 +42,8 @@ watch(query, () => {
   rowSelection.value = {}
 })
 
-// Unauthorised - handle a session that expires while the page is already open
-watch(error, async (value) => {
-  if (value?.statusCode !== 401) return
-  await clearSession()
-  await navigateTo({ path: '/login', query: { redirect: route.fullPath } })
-})
+// handles a session that expires while the page sits open.
+watch(error, value => handleUnauthorized(value))
 
 const isLoading = computed(() => status.value === 'pending')
 const isFiltered = computed(() => !!query.value.search || !!query.value.status)
@@ -110,6 +107,7 @@ const columns: TableColumn<ProductRow>[] = [
   { accessorKey: 'priceCents', header: 'Price', meta: { class: { th: 'text-right', td: 'text-right' } } },
   { accessorKey: 'stock', header: 'Stock', meta: { class: { th: 'text-right', td: 'text-right' } } },
   { accessorKey: 'status', header: 'Status' },
+  { id: 'actions' },
 ]
 
 const STATUS_COLOR = {
@@ -117,6 +115,104 @@ const STATUS_COLOR = {
   draft: 'neutral',
   archived: 'warning',
 } as const
+
+/**
+ * ARCHIVE AND DELETE ARE TWO FEATURES — DATABASE-DESIGN.md §3.
+ *
+ * Archive is `status='archived'`: reversible, and the SKU stays taken.
+ * Delete is `deletedAt`: irreversible, and the SKU is freed.
+ */
+const archiveTarget = ref<ProductRow | null>(null)
+const deleteTarget = ref<ProductRow | null>(null)
+const modalPending = ref(false)
+const modalError = ref('')
+const removable = ref<RemovableCheck | null>(null)
+
+const deleteWarning = computed(() =>
+  removable.value?.finishedOrderCount ? finishedOrderWarning(removable.value.finishedOrderCount) : undefined,
+)
+const isDeleteDisabled = computed(() => removable.value === null || !removable.value.ok)
+
+/**
+ * Row action menu.
+ *
+ * Archive is hidden on a row that is already archived. (hide in UI, non-block in endpoint)
+ */
+const rowActions = (row: ProductRow): DropdownMenuItem[][] => [
+  [{ label: 'Edit', icon: 'i-lucide-pencil', to: `/products/${row.id}/edit` }],
+  [
+    ...(row.status === 'archived'
+      ? []
+      : [{ label: 'Archive', icon: 'i-lucide-archive', onSelect: () => openArchive(row) }]),
+    { label: 'Delete', icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: () => openDelete(row) },
+  ],
+]
+
+const openArchive = (row: ProductRow) => {
+  modalError.value = ''
+  archiveTarget.value = row
+}
+
+const openDelete = async (row: ProductRow) => {
+  modalError.value = ''
+  removable.value = null
+  deleteTarget.value = row
+
+  try {
+    const check = await $fetch<RemovableCheck>(productPath(row.id, 'removable'))
+    removable.value = check
+    if (!check.ok) modalError.value = check.reason ?? ''
+  }
+  catch (error) {
+    if (!await handleUnauthorized(error)) {
+      modalError.value = errorMessage(error)
+    }
+  }
+}
+
+/**
+ * Shared code for the archive and delete modals after confirm.
+ * @param request The write to run
+ * @param successTitle What the toast says when it worked
+ */
+const runRemoval = async (request: () => Promise<unknown>, successTitle: string) => {
+  modalPending.value = true
+  modalError.value = ''
+
+  try {
+    await request()
+    toast.add({ title: successTitle, color: 'success' })
+    archiveTarget.value = null
+    deleteTarget.value = null
+    await refresh()
+  }
+  catch (error) {
+    if (!await handleUnauthorized(error)) {
+      modalError.value = errorMessage(error)
+    }
+  }
+  finally {
+    modalPending.value = false
+  }
+}
+
+const confirmArchive = () => {
+  const id = archiveTarget.value?.id
+  if (!id) return
+  return runRemoval(
+    () => $fetch<{ id: number }>(productPath(id), { method: 'PATCH', body: { status: 'archived' } }),
+    MESSAGES.productArchived,
+  )
+}
+
+const confirmDelete = () => {
+  const id = deleteTarget.value?.id
+  if (!id) return
+  return runRemoval(
+    () => $fetch<{ ok: boolean }>(productPath(id), { method: 'DELETE' }),
+    MESSAGES.productDeleted,
+  )
+}
 </script>
 
 <template>
@@ -125,12 +221,20 @@ const STATUS_COLOR = {
       <h1 class="text-2xl font-semibold">
         Products
       </h1>
-      <p
-        v-if="selectedCount"
-        class="text-sm text-muted"
-      >
-        {{ selectedCount }} selected
-      </p>
+      <div class="flex items-center gap-3">
+        <p
+          v-if="selectedCount"
+          class="text-sm text-muted"
+        >
+          {{ selectedCount }} selected
+        </p>
+        <UButton
+          to="/products/new"
+          icon="i-lucide-plus"
+        >
+          New product
+        </UButton>
+      </div>
     </div>
 
     <!-- Toolbar -->
@@ -251,6 +355,20 @@ const STATUS_COLOR = {
           </UBadge>
         </template>
 
+        <template #actions-cell="{ row }">
+          <div class="text-right">
+            <UDropdownMenu :items="rowActions(row.original)">
+              <UButton
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-ellipsis-vertical"
+                square
+                :aria-label="`Actions for ${row.original.name}`"
+              />
+            </UDropdownMenu>
+          </div>
+        </template>
+
         <!-- Loading -->
         <template #loading>
           <div class="space-y-3 py-2">
@@ -317,5 +435,33 @@ const STATUS_COLOR = {
         />
       </div>
     </template>
+
+    <!-- Archive modal -->
+    <ConfirmModal
+      :open="!!archiveTarget"
+      :title="MESSAGES.archiveTitle"
+      :description="MESSAGES.archiveBody"
+      :confirm-label="MESSAGES.archiveConfirm"
+      color="warning"
+      :loading="modalPending"
+      :server-error="modalError"
+      @update:open="archiveTarget = null"
+      @confirm="confirmArchive"
+    />
+
+    <!-- Delete modal -->
+    <ConfirmModal
+      :open="!!deleteTarget"
+      :title="MESSAGES.deleteTitle"
+      :description="MESSAGES.deleteBody"
+      :confirm-label="MESSAGES.deleteConfirm"
+      :color="isDeleteDisabled ? 'neutral' : 'error'"
+      :warning="deleteWarning"
+      :delete-disabled="isDeleteDisabled"
+      :loading="modalPending"
+      :server-error="modalError"
+      @update:open="deleteTarget = null"
+      @confirm="confirmDelete"
+    />
   </div>
 </template>

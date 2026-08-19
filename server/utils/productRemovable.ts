@@ -40,7 +40,8 @@ export type RemovableCheck = {
 
 /**
  * Decides whether a product can be archived or deleted.
- * @param productId The product to check
+ * @param productId - The product to check
+ * @returns - Results of the check, including counts of open and finished orders
  */
 export const checkRemovable = async (productId: number): Promise<RemovableCheck> => {
   const countOrders = (statuses: OrderStatus[]) =>

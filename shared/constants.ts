@@ -51,4 +51,33 @@ export const MESSAGES = {
   // product write endpoints
   productNotFound: 'Product not found',
   productOnOpenOrders: 'This product is on orders that still have to be fulfilled',
+  productNotDeleted: 'That product is not deleted, so there is nothing to undo',
+  skuReused: 'Cannot undelete: another live product has taken that SKU',
+
+  // confirm modals — archive and delete are different features, so they must not read alike
+  archiveTitle: 'Archive this product?',
+  archiveBody: 'It disappears from the active list but keeps its SKU, and you can bring it back at any time by setting the status to active.',
+  archiveConfirm: 'Archive',
+  deleteTitle: 'Delete this product?',
+  deleteBody: 'This cannot be undone here, and the SKU is freed for a new product to use.',
+  deleteConfirm: 'Delete',
+  cancel: 'Cancel',
+
+  // toasts
+  productCreated: 'Product created',
+  productUpdated: 'Product saved',
+  productArchived: 'Product archived',
+  productDeleted: 'Product deleted',
+
+  // pages
+  productLoadFailed: 'Could not load this product',
+  retry: 'Retry',
 } as const
+
+/**
+ * The delete modal's warning line. Finished orders do NOT block the delete — they are history,
+ * and `checkRemovable()` in server/utils/productRemovable.ts returns the count without failing.
+ * @param count How many shipped or delivered orders mention this product
+ */
+export const finishedOrderWarning = (count: number) =>
+  `This product appears on ${count} completed order${count === 1 ? '' : 's'}. That sales history is kept.`
