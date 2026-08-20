@@ -33,7 +33,7 @@ routes below will hit the same wall.
 
 - [x] The detail payload got its **own route**, `GET /api/products/:id/detail` — product plus buyers, and the only read route that resolves a soft-deleted row. `[id].get.ts` keeps `deletedAt: null`, so the edit form keeps its 404
 - [x] `GET /api/customers` — list with paging **and search**
-- [x] `GET /api/customers/:id` — customer plus their orders and items
+- [x] `GET /api/customers/:id` — customer plus their orders and an item **count** per order. The lines themselves stay on `/orders/:id`: counting with `_count` is one `COUNT(*)` Postgres runs while it is already on the row, where loading every line to call `.length` would not be
 - [x] `GET /api/orders/:id` — order, its line items, its customer, its status events
 - [x] Build `/products/[id]` — details, stock, and **who bought this**
 - [x] Build `/customers` — list
