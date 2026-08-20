@@ -96,29 +96,38 @@ line of it.
 
 ### Tasks
 
+**Two read routes the morning did not need**
+
+- [x] `GET /api/products/:id` — the edit form cannot fill itself otherwise. The list payload has
+      no `description`, and a refresh on `/products/12/edit` has no list in memory to read.
+      Nominally Day 4's route, pulled forward
+- [x] `GET /api/products/:id/removable` — `checkRemovable()` with nothing written. The delete
+      modal has to show the finished-order count *before* the user confirms, and the mutating
+      handlers only answer once the row has already changed
+
 **Forms**
 
-- [ ] Build create and edit pages using `UForm` with the **same schema the server imports**
-- [ ] **Field-level errors:** write the ONE helper that turns the morning's
+- [x] Build create and edit pages using `UForm` with the **same schema the server imports**
+- [x] **Field-level errors:** write the ONE helper that turns the morning's
       `{ sku: ['…'] }` into the `[{ name, message }]` `form.setErrors()` wants, and use it
       on every form
-- [ ] The duplicate SKU lands under the SKU box, not in a toast
+- [x] The duplicate SKU lands under the SKU box, not in a toast
 
 **Confirm modals**
 
-- [ ] Both archive and delete need a confirm modal, and **the wording differs** — archive:
+- [x] Both archive and delete need a confirm modal, and **the wording differs** — archive:
       reversible, SKU stays reserved. Delete: not reversible here, frees the SKU
-- [ ] The delete modal **warns** (does not block) when the product appears on *finished*
+- [x] The delete modal **warns** (does not block) when the product appears on *finished*
       orders, and says how many. That is history, not outstanding work. The count comes from
       `checkRemovable()`
-- [ ] Row actions on `/products` wire to both
+- [x] Row actions on `/products` wire to both
 
 **The 4 UI states — every screen that loads data**
 
-- [ ] **Loading** — skeleton rows, not a spinner over the whole page
-- [ ] **Empty** — "No products yet" with a Create button. Different message for "no search results"
-- [ ] **Error** — message plus a Retry button
-- [ ] **'Unauthorised'** — a 401 from any endpoint sends the user to `/login`
+- [x] **Loading** — skeleton rows, not a spinner over the whole page
+- [x] **Empty** — "No products yet" with a Create button. Different message for "no search results"
+- [x] **Error** — message plus a Retry button
+- [x] **'Unauthorised'** — a 401 from any endpoint sends the user to `/login`
 
 **Why no 403:** 403 is unreachable in this version. Because there is only one admin user and
 no roles, so every logged-in request is admin, and he allowed to do everything. There is no
@@ -129,11 +138,11 @@ request that is both authenticated and forbidden.
 
 ### Done when
 
-- [ ] Saving a duplicate SKU shows **"SKU already exists" under the SKU box** — not a toast
-- [ ] Turning off JavaScript validation and posting bad data still fails on the server
-- [ ] Every list screen shows something sensible when empty
-- [ ] Stopping the database mid-use shows the error state, and Retry works after restart
-- [ ] Archiving and deleting both work from the list, each behind its own worded modal
+- [x] Saving a duplicate SKU shows **"SKU already exists" under the SKU box** — not a toast
+- [x] Turning off JavaScript validation and posting bad data still fails on the server
+- [x] Every list screen shows something sensible when empty
+- [x] Stopping the database mid-use shows the error state, and Retry works after restart
+- [x] Archiving and deleting both work from the list, each behind its own worded modal
 
 ### Expected blockers
 
@@ -162,4 +171,12 @@ requirement of the day, so solve it first and reuse the helper everywhere.
 
 | What happened | Why it cost time | What I did | Time lost |
 |---|---|---|---|
-|  |  |  |  |
+| **Two read routes were missing before a single screen could be built** — `GET /api/products/:id` and `/removable` | Found at planning, not mid-build, so it cost scope rather than debugging. The morning only ever needed to *write* | Wrote both. The detail route is Day 4's, borrowed early. `removable.get.ts` is four lines around the existing `checkRemovable()` — no second copy of the rule | ~20 min |
+| **`nuxt typecheck` died on "Excessive stack depth"** on `$fetch(\`/api/products/${id}\`, { method: 'PATCH' })` | Not a type error in my code, so I went looking in the wrong place first. Lint and `vitest` were both green | Nitro types `$fetch` against every route, and a template literal makes TypeScript match `/api/products/${number}` against the whole table. `app/utils/productPath.ts` returns a plain `string` to opt out; each caller now states its own response type | ~25 min |
+| **`UForm`'s submit event hands back the schema's OUTPUT, not the state** | Caught while writing `ProductForm`, before it ran. Would have been baffling live: the client validates fine and the server rejects the same value | The price transform means `event.data.priceCents` is already `1999`, and the server expects `"19.99"` to convert. The form emits the raw `state` instead. Parsing happens once, server-side | ~10 min |
+| **The Delete button did nothing visible on a product the guard refuses** | Looked like a broken handler. It was not: the 409 was caught and rendered correctly. The refusal was simply ALREADY on screen from the pre-check, so clearing it and re-setting the identical string left the DOM unchanged, and the only evidence of the click was Chrome's own network line | Two fixes. `errorMessage()` in `app/utils/` reads the JSON body instead of `error.statusMessage` — that property is the HTTP reason phrase, absent under HTTP/2, and `'' ?? fallback` is `''`. Then the confirm button is disabled outright when the pre-check already said no, so the click cannot happen | ~30 min |
+| `UModal` renders its body wrapper whenever the slot exists | Cosmetic — an empty strip in the archive modal, which has no warning to show | `v-if` has to go on the `<template #body>` itself, not on the content inside it | ~5 min |
+
+**Predictions that did not fire:** the `setErrors` shape mismatch — the headline risk of the day. The morning had already settled the wire shape (`{ fieldErrors: { sku: ['…'] } }`, the same one `login.post.ts` returns), so the client half was one pure function and a unit test. The blocker table's advice was to solve it first; it turned out to have been solved the previous half-day.
+
+**Also confirmed by hand, since neither is provable server-side:** a duplicate SKU renders under the SKU box and not in a toast, and the delete modal shows the real finished-order count while Cancel is still an option.
