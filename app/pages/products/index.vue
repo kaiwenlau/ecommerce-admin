@@ -110,12 +110,6 @@ const columns: TableColumn<ProductRow>[] = [
   { id: 'actions' },
 ]
 
-const STATUS_COLOR = {
-  active: 'success',
-  draft: 'neutral',
-  archived: 'warning',
-} as const
-
 /**
  * ARCHIVE AND DELETE ARE TWO FEATURES — DATABASE-DESIGN.md §3.
  *
@@ -348,7 +342,7 @@ const confirmDelete = () => {
 
         <template #status-cell="{ row }">
           <UBadge
-            :color="STATUS_COLOR[row.original.status]"
+            :color="PRODUCT_STATUS_COLOR[row.original.status]"
             variant="subtle"
           >
             {{ row.original.status }}
