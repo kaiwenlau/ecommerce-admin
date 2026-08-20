@@ -75,6 +75,19 @@ export const MESSAGES = {
   // pages
   productLoadFailed: 'Could not load this product',
   retry: 'Retry',
+
+  // tracing pages
+  customerNotFound: 'Customer not found',
+  customerLoadFailed: 'Could not load this customer',
+  customersLoadFailed: 'Could not load customers',
+  orderNotFound: 'Order not found',
+  orderLoadFailed: 'Could not load this order',
+  noBuyers: 'No one has bought this yet.',
+  noCustomers: 'No customers yet.',
+  noCustomerMatches: 'No customers match this search.',
+  noOrders: 'This customer has not ordered anything yet.',
+  productDeletedBanner: 'This product is deleted. It stays reachable so old orders keep working, but it cannot be edited or sold.',
+  productRestored: 'Product restored',
 } as const
 
 /**

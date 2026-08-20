@@ -104,6 +104,6 @@ const handler = defineEventHandler(async (event) => {
 export default handler
 
 /**
- * What the Product Detail page `/products/:id` receives
+ * What the Product Detail page `/products/:id` receives.
  */
 export type ProductDetailResponse = Awaited<ReturnType<typeof handler>>
