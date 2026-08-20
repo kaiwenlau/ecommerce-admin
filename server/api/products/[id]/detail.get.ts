@@ -1,20 +1,15 @@
 /**
- * [CURRENT] `products/[id]/detail.get.ts` - `GET /api/products/:id/detail`
- * - 1 product & who bought it - brief's second tracing question.
- * - Information serves the DETAIL PAGE.
- * - Resolves deleted row, returns with `deletedAt` set
- *    - so old order linked to deleted product opens a page saying "deleted" instead of dead-end.
+ * `GET /api/products/:id/detail` — one product plus every customer who bought it.
+ * Called by `app/pages/products/[id]/index.vue`.
  *
- * [EXISTED] `products/[id].get.ts` - `GET /api/products/:id`
- * - 1 product & what reads it.
- * - Information serves the EDIT FORM.
- * - Deleted product must return 404. Deleted product must not be editable.
- *    - `app/pages/products/[id]/edit.vue` reads that 404 as exactly that.
+ * This answers the brief's second tracing question: given a product, who bought it.
  *
- * [ALTERNATIVE] One route that do both has to add a query flag.
- * But the Edit Form 404 is depending on that flag its caller must remember not to send.
- * See docs/decisions/DATABASE-DESIGN.md §3, the "Its own page" row.
-*/
+ * A deleted product resolves here instead of 404ing, so an old order line pointing at it opens a
+ * page marked "deleted" rather than a dead end.
+ *
+ * Separate from `[id].get.ts` because that route feeds the edit form and must 404 on a deleted
+ * product. See docs/decisions/DATABASE-DESIGN.md §3, the "Its own page" row.
+ */
 
 import { MESSAGES } from '#shared/constants'
 import type { Prisma } from '~~/generated/prisma/client'

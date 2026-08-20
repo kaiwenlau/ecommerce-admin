@@ -1,3 +1,17 @@
+/**
+ * `GET /api/products` — one page of products, filtered, searched and sorted.
+ * Called by `app/pages/products/index.vue` through `app/composables/useTableQuery.ts`, which
+ * keeps every one of those controls in the URL.
+ *
+ * `deletedAt: null` is unconditional, and the `status` filter layers on top of it. The two are
+ * different features: archive is a reversible status, delete is not.
+ * docs/decisions/DATABASE-DESIGN.md §3.
+ *
+ * `findMany` and `count` go inside one `$transaction` so the rows and the total describe the
+ * same snapshot. Run separately, a write landing between them yields a page count that does not
+ * match the rows above it.
+ */
+
 import { PAGE_SIZE } from '#shared/constants'
 import { productListQuerySchema } from '#shared/schemas/product'
 import type { Prisma } from '~~/generated/prisma/client'

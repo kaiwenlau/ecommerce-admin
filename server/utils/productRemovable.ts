@@ -1,14 +1,16 @@
 /**
- * One guard, three callers — see docs/decisions/DATABASE-DESIGN.md §3.
+ * The archive/delete guard, in one place — see docs/decisions/DATABASE-DESIGN.md §3.
+ * Called by `PATCH /api/products/:id`, `DELETE /api/products/:id` and
+ * `GET /api/products/:id/removable`.
  *
  * Archive and delete both ask the same question: "Is anyone still waiting for this product?"
  * Delete is the more destructive, so it can never be the more permissive.
  *
  * Re-implementing the rule per route is how the bulk action ends up refusing what the edit page allows.
  *
- *   PATCH  /api/products/:id  — only on a move to `archived`
- *   DELETE /api/products/:id  — always
- *   POST   /api/products/bulk — per item, Day 5
+ *   PATCH  /api/products/:id           — only on a move to `archived`
+ *   DELETE /api/products/:id           — always
+ *   GET    /api/products/:id/removable — asks without writing, to fill the delete modal
  */
 
 import { MESSAGES } from '#shared/constants'

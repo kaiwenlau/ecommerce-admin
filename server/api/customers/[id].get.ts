@@ -1,9 +1,11 @@
 /**
  * `GET /api/customers/:id` — one customer and every order they placed.
- * Read by the page at `/customers/:id`.
- * The brief's first tracing question: given a customer, what have they bought, when, and for how much.
+ * Called by `app/pages/customers/[id].vue`.
  *
- * Line items are NOT here. Each order row links on to the `/orders/:id` page, which shows them.
+ * This answers the brief's first tracing question: given a customer, what have they bought,
+ * when, and for how much.
+ *
+ * Line items are NOT here. Each order row links on to `/orders/:id`, which shows them.
  */
 
 import { MESSAGES } from '#shared/constants'

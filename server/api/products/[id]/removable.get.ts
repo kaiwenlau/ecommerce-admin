@@ -1,16 +1,13 @@
 /**
- * Answers `checkRemovable()` for one product without writing anything.
+ * `GET /api/products/:id/removable` — asks `checkRemovable()` about one product, writing nothing.
+ * Called by `openDelete()` in `app/pages/products/index.vue`, before the modal opens.
  *
- * `DELETE` runs the same guard on every call and `PATCH` runs it on a move to `archived`,
- * but both only answer as part of the write itself — a blocked product comes back as a 409
- * on a request the user has already confirmed.
+ * `DELETE` runs the same guard on every call and `PATCH` runs it on a move to `archived`, but
+ * both only answer as part of the write itself — a blocked product comes back as a 409 on a
+ * request the user has already confirmed.
  *
- * The delete modal needs the answer before that. `openDelete()` in
- * app/pages/products/index.vue fetches this route to fill the modal's warning line with the
- * finished-order count, and to keep the confirm button disabled when the product still sits
- * on an open order.
- *
- * Day 5's bulk action will use the same route, per item, to grey out rows it would refuse.
+ * The modal needs the answer before that. It fills the warning line with the finished-order
+ * count, and keeps the confirm button disabled while the product still sits on an open order.
  */
 
 import { MESSAGES } from '#shared/constants'

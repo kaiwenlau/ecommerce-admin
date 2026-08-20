@@ -1,3 +1,15 @@
+/**
+ * `PATCH /api/products/:id` — updates a product.
+ * Called from two places: `app/pages/products/[id]/edit.vue` sends the whole form, and the
+ * archive action in `app/pages/products/index.vue` sends only `{ status: 'archived' }`.
+ *
+ * Moving TO `archived` is the one status change that is guarded — it runs the same
+ * `checkRemovable` as delete, so a product cannot be hidden away while a customer is still
+ * waiting for it. Every other status move is unguarded.
+ *
+ * A soft-deleted row is not editable at all, and 404s before any of that runs.
+ */
+
 import { MESSAGES } from '#shared/constants'
 import { productUpdateSchema } from '#shared/schemas/product'
 

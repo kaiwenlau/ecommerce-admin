@@ -1,5 +1,7 @@
 /**
  * Turns a Prisma `Date` into the string the browser will actually receive.
+ * Called by every route that returns a date — both list routes, and the customer, order and
+ * product detail routes.
  *
  * WHY THIS EXISTS
  *

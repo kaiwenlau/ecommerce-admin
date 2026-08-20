@@ -1,9 +1,13 @@
 /**
  * `GET /api/orders/:id` — one order, its lines, its customer and its audit events.
- * Read by the page at `/orders/:id`.
- * This is middle of the tracing loop: a customer's order row links to the order page, and every order line links to the product.
+ * Called by `app/pages/orders/[id].vue`.
  *
- * Day 5 adds the status control and the audit timeline to that same page, so `statusEvents` is already in this payload.
+ * The middle of the tracing loop: a customer's order row links to that page, and every line on
+ * that page links back out to a product.
+ *
+ * `statusEvents` ships in this payload and the page renders it as a plain list. The seed writes
+ * those rows, so the list has content — but nothing writes them at RUNTIME. There is no route
+ * that changes an order's status, so the audit trail is read-only for now.
  */
 
 import { MESSAGES } from '#shared/constants'

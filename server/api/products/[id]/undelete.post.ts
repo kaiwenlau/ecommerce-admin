@@ -1,9 +1,12 @@
 /**
- * DEVELOPMENT ONLY. Puts a soft-deleted product back.
+ * `POST /api/products/:id/undelete` — DEVELOPMENT ONLY. Clears `deletedAt`, putting a
+ * soft-deleted product back.
+ * Called from the deleted-product banner in `app/pages/products/[id]/index.vue`.
  *
- * It exists so a demo run or a manual test does not have to end with db reset.
+ * It exists so a demo run or a manual test does not have to end in a database reset.
  *
- * `import.meta.dev` ensured in production build the body below is compiled away and the route answers 404.
+ * `import.meta.dev` becomes a literal at build time, so a production build compiles the body
+ * below away entirely and the route answers 404.
  */
 
 import { MESSAGES } from '#shared/constants'

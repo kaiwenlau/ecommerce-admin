@@ -1,3 +1,11 @@
+/**
+ * The 422 body every failed write returns, and the two helpers that build it.
+ * Called by `POST /api/products`, `PATCH /api/products/:id` and `POST /api/auth/login`.
+ *
+ * One shape covers two unrelated failures: a Zod rejection, which never reaches the database,
+ * and a unique-index violation, which only Postgres can detect. The forms learn one shape.
+ */
+
 import { z } from 'zod'
 import type { H3Event } from 'h3'
 import { Prisma } from '~~/generated/prisma/client'

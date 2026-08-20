@@ -1,7 +1,7 @@
 /**
  * "Which customers bought this product" — the grouping half, kept away from the database.
- *
- * `GET /api/products/:id/detail` runs ONE query for every order line that mentions the product and hands the rows here.
+ * Called by `GET /api/products/:id/detail`, which runs ONE query for every order line that
+ * mentions the product and hands the rows here.
  *
  * Grouping in JS rather than in SQL is the deliberate choice:
  * the query is a single indexed read on `OrderItem.productId`, and this file stays a pure function,

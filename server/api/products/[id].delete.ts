@@ -1,7 +1,12 @@
 /**
- * Deletion in this system are only Soft Delete.
- * A real delete would orphan the order lines that reference this product,
- * or take the sales history with it — DATABASE-DESIGN.md §3.
+ * `DELETE /api/products/:id` — soft delete. Stamps `deletedAt` and leaves the row in place.
+ * Called by the delete modal in `app/pages/products/index.vue`.
+ *
+ * Deletion here is ONLY ever soft. A real delete would orphan the order lines that reference
+ * this product, or take the sales history down with it — DATABASE-DESIGN.md §3.
+ *
+ * The `checkRemovable` guard runs on every call. Delete is more destructive than archive, so it
+ * can never be the more permissive of the two.
  */
 
 import { MESSAGES } from '#shared/constants'

@@ -1,6 +1,7 @@
 /**
- * `GET /api/customers` — one page of customers. Read by the `/customers` page, whose paging and
- * search live in the URL, same as the product list.
+ * `GET /api/customers` — one page of customers, each with their order count and lifetime spend.
+ * Called by `app/pages/customers/index.vue`, whose paging and search live in the URL — see
+ * `app/composables/useUrlQuery.ts`.
  */
 
 import { PAGE_SIZE } from '#shared/constants'

@@ -1,10 +1,12 @@
 /**
- * The edit form fills itself from here.
+ * `GET /api/products/:id` — every column the edit form needs.
+ * Called by `app/pages/products/[id]/edit.vue` to fill the form.
  *
- * `GET /api/products` cannot do it: the list omits `description`, and a browser landing
+ * `GET /api/products` cannot do this job: the list omits `description`, and a browser landing
  * straight on `/products/12/edit` has no list in memory to read from anyway.
  *
- * Day 4's detail page reads the same route.
+ * A soft-deleted product 404s here, because a deleted product must not be editable. The detail
+ * page needs the opposite answer, which is why it has its own route in `[id]/detail.get.ts`.
  */
 
 import { MESSAGES } from '#shared/constants'
