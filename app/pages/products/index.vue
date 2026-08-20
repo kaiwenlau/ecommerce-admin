@@ -133,7 +133,10 @@ const isDeleteDisabled = computed(() => removable.value === null || !removable.v
  * Archive is hidden on a row that is already archived. (hide in UI, non-block in endpoint)
  */
 const rowActions = (row: ProductRow): DropdownMenuItem[][] => [
-  [{ label: 'Edit', icon: 'i-lucide-pencil', to: `/products/${row.id}/edit` }],
+  [
+    { label: 'View', icon: 'i-lucide-eye', to: `/products/${row.id}` },
+    { label: 'Edit', icon: 'i-lucide-pencil', to: `/products/${row.id}/edit` },
+  ],
   [
     ...(row.status === 'archived'
       ? []
@@ -328,6 +331,15 @@ const confirmDelete = () => {
           >
             Price
           </UButton>
+        </template>
+
+        <template #name-cell="{ row }">
+          <ULink
+            :to="`/products/${row.original.id}`"
+            class="font-medium text-primary hover:underline"
+          >
+            {{ row.original.name }}
+          </ULink>
         </template>
 
         <template #priceCents-cell="{ row }">

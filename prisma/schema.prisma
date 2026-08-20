@@ -3,6 +3,11 @@
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
+
+  // Lets a query ask for `relationLoadStrategy: 'join'`. Without this line Prisma
+  // loads every nested relation with its own extra SELECT and stitches the rows
+  // together in JavaScript. Used by GET /api/products/:id/detail.
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {

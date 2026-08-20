@@ -16,6 +16,9 @@ export const MONEY_LOCALE = 'en-MY'
 export const MONEY_CURRENCY = 'MYR'
 export const CENTS_PER_UNIT = 100
 
+// dates
+export const DISPLAY_TIME_ZONE = 'Asia/Kuala_Lumpur'
+
 // ui
 export const SEARCH_DEBOUNCE_MS = 300
 export const TABLE_SKELETON_ROWS = 8

@@ -19,6 +19,14 @@ const navItems = computed<NavigationMenuItem[]>(() => [
     to: '/products',
     active: route.path === '/products' || route.path.startsWith('/products/'),
   },
+  {
+    label: 'Customers',
+    icon: 'i-lucide-users',
+    to: '/customers',
+    active: route.path.startsWith('/customers') || route.path.startsWith('/orders'),
+  },
+  // Orders have no list page of their own — an order is always reached through a customer
+  // or a product — so /orders/:id keeps the Customers tab lit.
 ])
 
 const onLogout = async () => {
