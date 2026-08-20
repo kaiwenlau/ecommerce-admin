@@ -17,6 +17,22 @@ If something is unfinished, I hide it or remove it. I do not start it.
 - [ ] Fill in any missing rows in the blocker logs above
 - [ ] Practise the demo below, out loud, with a timer
 
+## Cleanup — only if there is time
+
+Not features, not bugs. Skip the whole section unless everything above is done.
+
+- [x] **One comment header shape across `server/`.** Done — out of order, before the checklist
+      above. All 19 files now open with the route, then who calls it, then the one trap. Six had
+      no header at all and gave no way to find their caller. Reading them all turned up three
+      comments describing features that were never built (a status control, a bulk route, and a
+      third caller for `checkRemovable` that does not exist). See [logs/DAY6](../logs/DAY6.md)
+- [ ] **One handler idiom across every route.** Ten routes are `export default
+      defineEventHandler(…)`; the four Day 4 read routes are `const handler = …` then
+      `export default handler`, because `Awaited<ReturnType<typeof handler>>` needs a name to
+      point at and a default export made by a call expression creates none. Convert the ten to
+      the named form so there is one shape, and put the convention in `CLAUDE.md`'s Style
+      section. Mechanical — the handler is the last thing in every one of those files
+
 ## Done when
 
 - [ ] Fresh clone → `docker compose up -d`, `npm i`, `npx prisma migrate deploy`, `npx prisma db seed`, `npm run dev` → it works
@@ -40,4 +56,4 @@ day after this one.
 
 | What happened | Why it cost time | What I did | Time lost |
 |---|---|---|---|
-|  |  |  |  |
+| Wrote a comment saying nothing writes `OrderStatusEvent` | `grep statusEvent` is case-sensitive, and Prisma's client property is `orderStatusEvent`. The seed writes them at `prisma/seed.ts:167` and the search never touched it | Caught it from the Day 4 log's closing line, an hour later. Corrected the comment. Use `grep -i` before claiming something never happens | 10 min |

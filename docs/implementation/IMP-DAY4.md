@@ -31,25 +31,26 @@ routes below will hit the same wall.
 
 ## Tasks
 
-- [ ] `GET /api/products/:id` — **exists already.** Add the customers who bought it, and make it resolve soft-deleted rows (see above)
-- [ ] `GET /api/customers` — list with paging
-- [ ] `GET /api/customers/:id` — customer plus their orders and items
-- [ ] `GET /api/orders/:id` — order, its line items, its customer, its status events
-- [ ] Build `/products/[id]` — details, stock, and **who bought this**
-- [ ] Build `/customers` — list
-- [ ] Build `/customers/[id]` — **what they bought, when, how much**, plus total spent
-- [ ] Build `/orders/[id]` — line items at the price paid, plus the customer. **Day 5 adds the status control and the timeline to this page**, so it has to exist first
-- [ ] Every order row links to the customer *and* to the order. Every product row links to the product
-- [ ] Show the **price paid at the time**, from `OrderItem`, not today's price
-- [ ] All 4 UI states on these pages too
+- [x] The detail payload got its **own route**, `GET /api/products/:id/detail` — product plus buyers, and the only read route that resolves a soft-deleted row. `[id].get.ts` keeps `deletedAt: null`, so the edit form keeps its 404
+- [x] `GET /api/customers` — list with paging **and search**
+- [x] `GET /api/customers/:id` — customer plus their orders and items
+- [x] `GET /api/orders/:id` — order, its line items, its customer, its status events
+- [x] Build `/products/[id]` — details, stock, and **who bought this**
+- [x] Build `/customers` — list
+- [x] Build `/customers/[id]` — **what they bought, when, how much**, plus total spent
+- [x] Build `/orders/[id]` — line items at the price paid, plus the customer. **Day 5 adds the status control and the timeline to this page**, so it has to exist first
+- [x] Every order row links to the customer *and* to the order. Every product row links to the product
+- [x] Show the **price paid at the time**, from `OrderItem`, not today's price
+- [x] All 4 UI states on these pages too
+- [x] `undelete.post.ts` now has a caller — a dev-only **Restore** button on the deleted banner
 
 ## Done when
 
-- [ ] Pasting `/customers/12` into a fresh tab works with no white flash
-- [ ] Pasting `/products/5` into a fresh tab works
-- [ ] Pasting `/orders/42` into a fresh tab works
-- [ ] A deleted product's page still opens, marked as deleted
-- [ ] I can start at a customer, click to an order, click to a product, click to another customer
+- [x] Pasting `/customers/12` into a fresh tab works with no white flash
+- [x] Pasting `/products/5` into a fresh tab works
+- [x] Pasting `/orders/42` into a fresh tab works
+- [x] A deleted product's page still opens, marked as deleted — and Restore brings it back
+- [x] I can start at a customer, click to an order, click to a product, click to another customer
 
 ## Expected blockers
 
@@ -68,5 +69,21 @@ routes below will hit the same wall.
 
 | What happened | Why it cost time | What I did | Time lost |
 |---|---|---|---|
+| **`[id].vue` next to `[id]/edit.vue` makes the detail page a PARENT route** | Caught before writing the file, from Nuxt's nested-routes rule | `pages/x.vue` plus `pages/x/child.vue` is how Nuxt declares a layout with children: `/products/12/edit` would then render the detail page **around** the form, and only if the detail page had a `<NuxtPage />` in it. Put the detail page at `[id]/index.vue` instead — two siblings, no nesting | ~0, predicted |
+| **The generic half of `useTableQuery` was product-shaped** | The customer list needed paging and search from the URL and nothing else, but the composable imported `productListQuerySchema` directly | Split it: `useUrlQuery(schema)` holds the one-way-data-flow rule, the single writer and the default-stripping; `useTableQuery` is now a four-line wrapper adding the product table's sort and status. `/products` did not change | ~15 min |
+| **`Date` on the server is a `string` in the browser** | Not a crash — a lie in the types. The route's return type says `createdAt: Date`, and typing a page with it promises a `Date` where JSON delivers an ISO string | First fix was a hand-written `Wire<T>` mapping `Date` to `string`. **Replaced on review:** it duplicated Nitro's own `Serialize`, which Nuxt already applies to every route. The routes now call `toIso()` themselves, so a handler's return type IS the wire type and no mapping is needed on either side. `formatDate()` was narrowed to `string` to make a missed conversion a compile error | ~15 min, +25 to redo |
 | **Day 3's evening ran into this slot** — the write path, `ProductForm`, both confirm modals and the error helpers were finished here, not on Day 3 | Not a debugging cost. Day 3's evening was six screens' worth of work priced as half a day, and the two read routes it needed were only discovered at planning time | Finished it rather than cutting it — every item on it is a brief requirement (field errors, the 4 states). The tracing pages below have not started | ~1 day |
 |  |  |  |  |
+
+**Predictions that did not fire:** all four of the medium-and-high risks about queries. No N+1 —
+each page is one `include` or one `groupBy`, and the buyers table is a single indexed read on
+`OrderItem.productId` grouped in JS by `server/utils/buyers.ts`. No cold-load flash, because
+`useFetch(..., { lazy: true })` still runs during SSR; `lazy` only decides whether the *navigation*
+blocks. No stack trace on a bad id — every route validates the param before touching Postgres. And
+no stale price: the order page reads `OrderItem.unitPriceCents`, and `Product.priceCents` is never
+selected on that route, so reading the wrong one is not possible rather than merely avoided.
+
+**Two small things changed after seeing them on screen**, neither of them provable server-side:
+`shipped` and `delivered` were both green in the customer's order table and unreadable at a glance,
+and a deleted product was showing an `archived` badge next to its deleted banner — implying the two
+columns are one scale. The badge is now hidden while the row is deleted.
