@@ -6,7 +6,7 @@
 
 ## 1. Stock that cannot oversell (morning, ~2 hours)
 
-- [ ] Write the order-creating service using one atomic update:
+- [x] Write the order-creating service using one atomic update — `server/utils/createOrder.ts`:
 
 ```ts
 const { count } = await tx.product.updateMany({
@@ -16,9 +16,18 @@ const { count } = await tx.product.updateMany({
 if (count === 0) throw new OutOfStockError(id)
 ```
 
-- [ ] Wrap the order and the stock change in one `$transaction`
-- [ ] Write **test 1**: two orders for the last item at the same time → exactly one wins
-- [ ] Write **test 2**: change a product price → the old order still shows the old price
+- [x] Wrap the order and the stock change in one `$transaction`
+- [x] Write **test 1**: two orders for the last item at the same time → exactly one wins
+- [x] Write **test 2**: change a product price → the old order still shows the old price
+- [x] Sanity check done: deleted the `gte` guard, test 1 failed, put it back
+- [x] Added `POST /api/orders` over the service, so the rule can also be shown with two
+      concurrent `curl`s and not only inside vitest. Nothing in `app/` calls it — there is no
+      storefront. Verified: no cookie → 401, `qty: 0` → 422, archived product → 409,
+      more than the shelf holds → 409, two at once for the last item → one 201 and one 409
+
+`npx vitest run` now needs Postgres up (`npm run db:up`). A concurrency test cannot be faked,
+so `test/db/create-order.test.ts` talks to the real database. It builds its own rows — `SKU-TEST-`
+and `@test.invalid` — and deletes them again, so it never touches the seeded demo data.
 
 ## 2. Order status + audit trail (midday, ~2 hours)
 
@@ -47,7 +56,7 @@ if (count === 0) throw new OutOfStockError(id)
 
 ## Done when
 
-- [ ] `npx vitest run` — both tests pass
+- [x] `npx vitest run` — both tests pass (needs `npm run db:up` first)
 - [ ] I can force a bad status change and the server refuses it
 - [ ] The order page shows who changed the status and when
 - [ ] Bulk archive 10 products where 3 fail → 7 change, 3 go back, panel lists the 3 with reasons
@@ -73,4 +82,4 @@ if (count === 0) throw new OutOfStockError(id)
 
 | What happened | Why it cost time | What I did | Time lost |
 |---|---|---|---|
-|  |  |  |  |
+| Sanity check on test 1 | None — it did what the row above says to do | Deleted `stock: { gte: qty }` and re-ran. Test 1 failed, but on `PrismaClientKnownRequestError`, not a stock of `-1`: layer 2, the `CHECK (stock >= 0)`, caught what layer 1 stopped guarding. Both layers shown working in one run | 0 |
