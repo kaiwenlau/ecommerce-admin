@@ -32,6 +32,14 @@ Not features, not bugs. Skip the whole section unless everything above is done.
       point at and a default export made by a call expression creates none. Convert the ten to
       the named form so there is one shape, and put the convention in `CLAUDE.md`'s Style
       section. Mechanical — the handler is the last thing in every one of those files
+- [ ] **One word for a row on an order.** `server/utils/createOrder.ts` and its test now say
+      "order line" throughout — `OrderLine`, `orderLines`, and `requestedLines` for the
+      un-snapshotted request. Everywhere else still says bare "line": `buyers.ts` (`BuyerLine`,
+      15 hits), the orders and product detail routes, `test/buyers.test.ts`. Not mechanical —
+      the same word means a line of text in `toIso.ts`, `db.ts` and `fieldErrors.ts`, so a
+      find-and-replace corrupts those. And `lineTotalCents` is a TanStack `accessorKey` plus a
+      matching `#lineTotalCents-cell` slot name in `app/pages/orders/[id].vue`, a string pair
+      `typecheck` does not check — a missed rename renders an empty column. Post-demo only
 
 ## Done when
 

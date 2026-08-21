@@ -20,20 +20,31 @@ import { MESSAGES } from '#shared/constants'
 import { prisma } from './db'
 
 /**
- * One line of a new order: which product, how many.
- * The server copies name and price from the product row inside the transaction.
+ * One order line as the caller asks for it: which product, how many.
+ * Name and price are not accepted from the caller — the transaction below copies both off the
+ * product row itself, so a client cannot name its own price.
  */
 export type OrderLineInput = {
   productId: number
   qty: number
 }
 
+/**
+ * `items` rather than `lines`, because that is the field name `orderCreateSchema` in
+ * `shared/schemas/order.ts` validates and the one the request body carries.
+ */
 export type CreateOrderInput = {
   customerId: number
   items: OrderLineInput[]
 }
 
-export type OrderItem = {
+/**
+ * One order line as it will be stored, price snapshot included.
+ *
+ * This is a shape built in this file, not a database type. The table it is written to is the
+ * `OrderItem` model in prisma/schema.prisma — same row, and the two names sit close together.
+ */
+export type OrderLine = {
   productId: number
   name: string
   unitPriceCents: number
@@ -41,7 +52,7 @@ export type OrderItem = {
 }
 
 /**
- * Thrown when a line asks for more than is left on the shelf.
+ * Thrown when an order line asks for more than is left on the shelf.
  */
 export class OutOfStockError extends Error {
   constructor(readonly productId: number) {
@@ -62,12 +73,12 @@ export class ProductNotSellableError extends Error {
 }
 
 /**
- * Creates an order, decrementing stock atomically per line.
+ * Creates an order, decrementing stock atomically per order line.
  *
- * @param input The customer and the orderLines they are buying
+ * @param input The customer and the order lines they are buying
  * @returns The new order's id and its total in whole cents
- * @throws {OutOfStockError} A line asked for more than is left
- * @throws {ProductNotSellableError} A line named a product that cannot be sold
+ * @throws {OutOfStockError} An order line asked for more than is left
+ * @throws {ProductNotSellableError} An order line named a product that cannot be sold
  */
 export const createOrder = async ({ customerId, items }: CreateOrderInput) => {
   if (items.length === 0) {
@@ -82,11 +93,11 @@ export const createOrder = async ({ customerId, items }: CreateOrderInput) => {
 
   // Sorted by product id so every transaction locks its rows in the same order.
   // `sort()` mutates the source array, so `[...items]` makes a copy out from source.
-  const orderLines = [...items].sort((a, b) => a.productId - b.productId)
+  const requestedLines = [...items].sort((a, b) => a.productId - b.productId)
 
   // Transaction: the order exists AND the stock moved, else rollback.
   return prisma.$transaction(async (tx) => {
-    const productIds = [...new Set(orderLines.map(orderLine => orderLine.productId))]
+    const productIds = [...new Set(requestedLines.map(requestedLine => requestedLine.productId))]
 
     // Get the name and price of the products at current state.
     const products = await tx.product.findMany({
@@ -97,48 +108,48 @@ export const createOrder = async ({ customerId, items }: CreateOrderInput) => {
     // Keyed by id so the loop below is a lookup, not a scan per order line.
     const byId = new Map(products.map(product => [product.id, product]))
 
-    // Get the orderItems for products the customer buying.
-    const orderItems: OrderItem[] = orderLines.map((orderLine) => {
-      const product = byId.get(orderLine.productId)
+    // Build the order lines, contain products the customer buying. Name and price copied here.
+    const orderLines: OrderLine[] = requestedLines.map((requestedLine) => {
+      const product = byId.get(requestedLine.productId)
       if (!product) {
-        throw new ProductNotSellableError(orderLine.productId)
+        throw new ProductNotSellableError(requestedLine.productId)
       }
 
       return {
         productId: product.id,
         name: product.name,
         unitPriceCents: product.priceCents,
-        qty: orderLine.qty,
+        qty: requestedLine.qty,
       }
     })
 
-    for (const orderItem of orderItems) {
+    for (const orderLine of orderLines) {
       // The overselling guard. Checking and decrementing are a single SQL statement with no gap for a second buyer to slip into.
       // Postgres runs on READ COMMITTED - Concurrency.
       // Bug with `update`: takes only a unique id, so it would force a read-then-write.
       const { count } = await tx.product.updateMany({
         where: {
-          id: orderItem.productId,
+          id: orderLine.productId,
           deletedAt: null,
           status: 'active',
-          stock: { gte: orderItem.qty },
+          stock: { gte: orderLine.qty },
         },
-        data: { stock: { decrement: orderItem.qty } },
+        data: { stock: { decrement: orderLine.qty } },
       })
 
       // Either the stock ran out or the product not sellable in the moments.
       if (count === 0) {
-        throw new OutOfStockError(orderItem.productId)
+        throw new OutOfStockError(orderLine.productId)
       }
     }
 
-    const totalCents = orderItems.reduce((sum, orderItem) => sum + orderItem.unitPriceCents * orderItem.qty, 0)
+    const totalCents = orderLines.reduce((sum, orderLine) => sum + orderLine.unitPriceCents * orderLine.qty, 0)
 
     return tx.order.create({
       data: {
         customerId,
         totalCents,
-        items: { create: orderItems }, // inserts the order and all its orderLines together
+        items: { create: orderLines }, // inserts the order and all its order lines together
       },
       select: { id: true, totalCents: true },
     })
