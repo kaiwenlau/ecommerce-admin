@@ -40,6 +40,14 @@ Not features, not bugs. Skip the whole section unless everything above is done.
       find-and-replace corrupts those. And `lineTotalCents` is a TanStack `accessorKey` plus a
       matching `#lineTotalCents-cell` slot name in `app/pages/orders/[id].vue`, a string pair
       `typecheck` does not check — a missed rename renders an empty column. Post-demo only
+- [ ] **Type-check the tests.** Nothing under `test/` has ever been type-checked. `nuxt typecheck`
+      covers app, server and shared, and the only test path in any Nuxt tsconfig is
+      `test/nuxt/**/*`, which is for `@nuxt/test-utils`. So `#shared` and `~~` do not resolve,
+      the Prisma client degrades to `any`, and every `select` and `where` in a test is unchecked
+      — `test/db/create-order.test.ts:71` carries a hand-written annotation because of it. Fix:
+      add `test/tsconfig.json` with `paths` mirroring the two aliases in `vitest.config.ts`, plus
+      a `typecheck:test` script. Additive: `npm run typecheck` and the build stay as they are.
+      Expect it to surface real errors in the other test files the first time it runs
 
 ## Done when
 
