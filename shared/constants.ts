@@ -57,6 +57,12 @@ export const MESSAGES = {
   productNotDeleted: 'That product is not deleted, so there is nothing to undo',
   skuReused: 'Cannot undelete: another live product has taken that SKU',
 
+  // order placing
+  orderNeedsItems: 'An order needs at least one item',
+  orderQtyInvalid: 'Quantity must be a whole number, 1 or more',
+  productNotSellable: 'This product cannot be put on a new order',
+  productOutOfStock: 'Not enough stock left for this order',
+
   // confirm modals — archive and delete are different features, so they must not read alike
   archiveTitle: 'Archive this product?',
   archiveBody: 'It disappears from the active list but keeps its SKU, and you can bring it back at any time by setting the status to active.',
